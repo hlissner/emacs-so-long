@@ -8,7 +8,7 @@
 ;; Keywords: convenience
 ;; Created: 23 Dec 2015
 ;; Package-Requires: ((emacs "24.3"))
-;; Version: 0.7.5
+;; Version: 0.7.6
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -106,6 +106,7 @@
 
 ;;; Change Log:
 ;;
+;; 0.7.6 - Bug fix for `so-long-mode-hook' losing its default value.
 ;; 0.7.5 - Documentation.
 ;;       - Added sgml-mode and nxml-mode to `so-long-target-modes'.
 ;; 0.7.4 - Refactored the handling of `whitespace-mode'.
@@ -262,6 +263,15 @@ Returns non-nil if any such excessive-length line is detected."
             (forward-line)
             (setq count (1+ count))))))))
 
+(defcustom so-long-mode-hook '(so-long-inhibit-global-hl-line-mode)
+  ;; This user option must be defined prior to `so-long-mode' to
+  ;; prevent `define-derived-mode' setting its value to nil; however
+  ;; the mode definition will clobber our docstring, so we will set
+  ;; that after the mode has been defined.
+  ""
+  :type '(repeat function)
+  :group 'so-long)
+
 (define-derived-mode so-long-mode nil "So long"
   "This mode is used if line lengths exceed `so-long-threshold'.
 
@@ -301,19 +311,19 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
            (or (so-long-original 'major-mode) "<unknown>")
            (substitute-command-keys "\\[so-long-mode-revert]")))
 
-(defcustom so-long-mode-hook '(so-long-inhibit-global-hl-line-mode)
-  ;; This must be defined after `so-long-mode', otherwise a default
-  ;; docstring will be used instead of the following.
-  "List of functions to call when `so-long-mode' is invoked.
+;; In order to provide a custom docstring for `so-long-mode-hook', we
+;; must set it after `so-long-mode' is defined, as `define-derived-mode'
+;; clobbers any existing docstring (see the user option definition for
+;; why we define it first).
+(put 'so-long-mode-hook 'variable-documentation
+     "List of functions to call when `so-long-mode' is invoked.
 
 This is the standard mode hook for `so-long-mode' which runs between
 `change-major-mode-after-body-hook' and `after-change-major-mode-hook'.
 
 Note that globalized minor modes have not yet acted.
 
-See also `so-long-hook' and `so-long-minor-modes'."
-  :type '(repeat function)
-  :group 'so-long)
+See also `so-long-hook' and `so-long-minor-modes'.")
 
 (defun so-long-after-change-major-mode ()
   "Disable modes in `so-long-minor-modes' and run `so-long-hook' functions.
