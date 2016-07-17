@@ -67,7 +67,7 @@
 ;; symbol to the `so-long-minor-modes' list.  Several modes are targeted by
 ;; default, and it is a good idea to customize this variable to add any
 ;; additional buffer-local minor modes that you use which you know to have
-;; performance implications. For example:
+;; performance implications.  For example:
 ;;
 ;; (when (require 'so-long nil :noerror)
 ;;   (mapc (apply-partially 'add-to-list 'so-long-minor-modes)
@@ -217,7 +217,7 @@ See also `so-long-remember' and `so-long-original'.")
   "Return the current value for KEY in `so-long-original-values'.
 
 If you need to differentiate between a stored value of nil and no stored value
-at all, make EXISTS non-nil. This then returns the result of `assq' directly:
+at all, make EXISTS non-nil.  This then returns the result of `assq' directly:
 nil if no value was set, and a cons cell otherwise."
   (if exists
       (assq key so-long-original-values)
@@ -280,11 +280,11 @@ and may consequently cause unacceptable performance issues.
 
 This is commonly on account of 'minified' code (i.e. code has been compacted
 into the smallest file size possible, which often entails removing newlines
-should they not be strictly necessary). These kinds of files are typically
+should they not be strictly necessary).  These kinds of files are typically
 not intended to be edited, so not providing the usual editing mode in these
 cases will rarely be an issue.
 
-When such files are detected, we invoke this mode. This happens after
+When such files are detected, we invoke this mode.  This happens after
 `set-auto-mode' has set the major mode, should the selected major mode be
 a member (or derivative of a member) of `so-long-target-modes'.
 
@@ -439,7 +439,7 @@ This advice acts after any initial MODE-ONLY call to `hack-local-variables',
 and ensures that we do not change to `so-long-mode' in that scenario.
 
 File-local header comments are currently an exception (see the commentary
-for details). The file-local mode will ultimately still be used, however
+for details).  The file-local mode will ultimately still be used, however
 `so-long-mode' still runs first, thus displaying a misleading message.
 This issue will eventually be resolved in Emacs."
   (when (ad-get-arg 0) ; MODE-ONLY argument to `hack-local-variables'
