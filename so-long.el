@@ -1,6 +1,6 @@
 ;;; so-long.el --- Say farewell to performance problems with minified code.
 ;;
-;; Copyright (C) 2015, 2016 Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2016, 2018 Free Software Foundation, Inc.
 
 ;; Author: Phil Sainty <psainty@orcon.net.nz>
 ;; Maintainer: Phil Sainty <psainty@orcon.net.nz>
@@ -8,7 +8,7 @@
 ;; Keywords: convenience
 ;; Created: 23 Dec 2015
 ;; Package-Requires: ((emacs "24.3"))
-;; Version: 0.7.6
+;; Version: 0.8
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -38,18 +38,29 @@
 ;;
 ;; When such files are detected, we invoke `so-long-mode' in place of the mode
 ;; that Emacs selected.  This is almost identical to `fundamental-mode', and
-;; so provides optimal performance in the buffer.  In addition, we explicitly
-;; disable certain minor modes and set buffer-local values for certain
-;; variables (all configurable), where there are performance implications.
+;; so provides optimal major mode performance in the buffer.  In addition, we
+;; explicitly disable certain minor modes and set buffer-local values for
+;; certain variables (all configurable), where there are performance
+;; implications.
 ;;
 ;; These kinds of minified files are typically not intended to be edited; so
 ;; not providing the usual editing mode in such cases will rarely be an issue.
 ;; However, should the user wish to do so, the original mode may be reinstated
 ;; easily in any given buffer using `so-long-mode-revert' (the key binding for
 ;; which is advertised when the mode is entered).
+;;
+;; Note that while the measures taken by this library can improve performance
+;; dramatically when dealing with such files, this library does not have any
+;; effect on the fundamental limitations of the Emacs redisplay code itself;
+;; and so if you do need to edit the file, performance may still degrade as
+;; you get deeper into the long lines.  In such circumstances you may find
+;; that `longlines-mode' is the most helpful facility.
 
 ;; Installation
 ;; ------------
+;; Put so-long.el in a directory in your load-path, and add the following to
+;; your init file:
+;;
 ;; (when (require 'so-long nil :noerror)
 ;;   (so-long-enable))
 
@@ -68,13 +79,7 @@
 ;; symbol to the `so-long-minor-modes' list.  Several modes are targeted by
 ;; default, and it is a good idea to customize this variable to add any
 ;; additional buffer-local minor modes that you use which you know to have
-;; performance implications.  For example:
-;;
-;; (when (require 'so-long nil :noerror)
-;;   (mapc (apply-partially 'add-to-list 'so-long-minor-modes)
-;;         '(hl-sexp-mode diff-hl-mode diff-hl-amend-mode diff-hl-flydiff-mode
-;;                        idle-highlight-mode rainbow-delimiters-mode))
-;;   (so-long-enable))
+;; performance implications.
 ;;
 ;; In the case of globalized minor modes, be sure to specify the buffer-local
 ;; minor mode, and not the global mode which controls it.
@@ -82,10 +87,10 @@
 ;; Note that `so-long-minor-modes' is not useful for other global minor modes
 ;; (as distinguished from globalized minor modes), but in some cases it will be
 ;; possible to inhibit or otherwise counter-act the behaviour of a global mode
-;; using the following hooks.  You would need to inspect the code for a given
-;; global mode (on a case by case basis) to determine whether it's possible to
-;; inhibit it for a single buffer, and if so how best to do that, as not all
-;; modes are alike.
+;; by overriding variables, or by employing hooks (see below).  You would need
+;; to inspect the code for a given global mode (on a case by case basis) to
+;; determine whether it's possible to inhibit it for a single buffer -- and if
+;; so, how best to do that, as not all modes are alike.
 
 ;; Overriding variables
 ;; --------------------
@@ -98,8 +103,6 @@
 
 ;; Hooks
 ;; -----
-;; Two custom hooks are available for custom behaviours.
-;;
 ;; `so-long-mode-hook' is the standard major mode hook, which runs between
 ;; `change-major-mode-after-body-hook' and `after-change-major-mode-hook'.
 ;;
@@ -107,6 +110,45 @@
 ;; globalized minor modes have acted (because we call `add-hook' with the
 ;; APPEND argument, and globalized modes do not).  This hook runs immediately
 ;; after `so-long-minor-modes' has been processed.
+;;
+;; Lastly, if the `so-long-revert' command is used to restore the original
+;; major mode then, once that has happened, `so-long-revert-hook' is run.
+;; This could be used to undo the effects of the previous hooks.
+
+;; Troubleshooting
+;; ---------------
+;; Any elisp library has the potential to cause performance problems, so
+;; while the default configuration addresses some important common cases,
+;; it's entirely possible that your own config introduces problem cases
+;; which are unknown to this library.
+;;
+;; If visiting a file is still taking a very long time with so-long enabled,
+;; you should test the following command:
+;;
+;; emacs -Q -l /path/to/so-long.el -f so-long-enable <file>
+;;
+;; If the file loads quickly when that command is used, you'll know that
+;; something in your personal configuration is causing problems.  If this
+;; turns out to be a buffer-local minor mode, or a user option, you can
+;; likely alleviate the issue by customizing `so-long-minor-modes' or
+;; `so-long-variable-overrides' accordingly.
+
+;; Example configuration
+;; ---------------------
+;; (when (require 'so-long nil :noerror)
+;;   (so-long-enable)
+;;   ;; Additional target major modes to trigger for.
+;;   (mapc (apply-partially 'add-to-list 'so-long-target-modes)
+;;         '(sgml-mode nxml-mode))
+;;   ;; Additional buffer-local minor modes to disable.
+;;   (mapc (apply-partially 'add-to-list 'so-long-minor-modes)
+;;         '(hl-sexp-mode diff-hl-mode diff-hl-amend-mode diff-hl-flydiff-mode
+;;                        dtrt-indent-mode idle-highlight-mode
+;;                        rainbow-delimiters-mode))
+;;   ;; Additional variables to override.
+;;   (mapc (apply-partially 'add-to-list 'so-long-variable-overrides)
+;;         '((show-trailing-whitespace . nil)
+;;           (truncate-lines . nil))))
 
 ;; Implementation notes
 ;; --------------------
@@ -370,8 +412,6 @@ was not used, and to facilitate hooks for other so-long functionality.
 
 To revert to the original mode despite any potential performance issues,
 type \\[so-long-mode-revert], or else re-invoke it manually."
-  ;; Disable font-lock (circumventing `global-font-lock-mode'),
-  ;; and other undesirable functionality.
   (add-hook 'after-change-major-mode-hook
             'so-long-after-change-major-mode :append :local)
   ;; Override variables.  This is the first of two instances where we do this
@@ -381,7 +421,10 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
   (dolist (ovar so-long-variable-overrides)
     (set (make-local-variable (car ovar)) (cdr ovar)))
   ;; Inform the user about our major mode hijacking.
-  (message "Changed to %s (from %s) on account of line length. %s to revert."
+  (message (concat "Changed to %s (from %s)"
+                   (unless (eq this-command 'so-long-mode)
+                     " on account of line length")
+                   ".  %s to revert.")
            major-mode
            (or (so-long-original 'major-mode) "<unknown>")
            (substitute-command-keys "\\[so-long-mode-revert]")))
@@ -394,7 +437,7 @@ This is the standard mode hook for `so-long-mode' which runs between
 
 Note that globalized minor modes have not yet acted.
 
-See also `so-long-hook' and `so-long-minor-modes'."
+See also `so-long-hook'."
   :type 'hook
   :group 'so-long)
 
@@ -525,6 +568,8 @@ This issue will eventually be resolved in Emacs."
     ;; Inhibit `so-long-mode' if a MODE is specified.
     (setq so-long--inhibited ad-return-value)))
 
+;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
+
 (defadvice set-auto-mode (around so-long--set-auto-mode disable)
   "Maybe change to `so-long-mode' for files with very long lines.
 
@@ -535,11 +580,7 @@ from `so-long-mode' (binary file modes, for example).  Instead, we act
 only when the selected major mode is a member (or derivative of a member)
 of `so-long-target-modes'.
 
-`so-long-line-detected-p' then determines whether the mode change is needed.
-
-Local variables are not processed after changing to `so-long-mode', as
-they might negatively affect performance.  (Local variables are processed
-again if `so-long-mode-revert' is called, however.)"
+`so-long-line-detected-p' then determines whether the mode change is needed."
   (setq so-long--inhibited nil) ; is permanent-local
   (when so-long-enabled
     (so-long-check-header-modes)) ; may set `so-long--inhibited'
@@ -549,6 +590,8 @@ again if `so-long-mode-revert' is called, however.)"
       (when (and (apply 'derived-mode-p so-long-target-modes)
                  (so-long-line-detected-p))
         (so-long-mode)))))
+
+;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
 
 ;;;###autoload
 (defun so-long-enable ()
