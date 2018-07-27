@@ -182,19 +182,21 @@ See also `so-long-mode-hook'."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
   :group 'so-long)
 
-(defcustom so-long-hook '(so-long-make-buffer-read-only) ;; n.b. do this last.
+(defcustom so-long-hook nil
   "List of functions to call after `so-long-mode'.
 
 This hook runs during `after-change-major-mode-hook', and after any globalized
 minor modes have acted.
 
 See also `so-long-mode-hook' and `so-long-minor-modes'."
-  :type '(repeat function)
+  :type 'hook
+  :options '(so-long-make-buffer-read-only)
   :group 'so-long)
 
-(defcustom so-long-revert-hook '(so-long-revert-buffer-read-only)
+(defcustom so-long-revert-hook nil
   "List of functions to call after `so-long-mode-revert'."
-  :type '(repeat function)
+  :type 'hook
+  :options '(so-long-revert-buffer-read-only)
   :group 'so-long)
 
 (defvar so-long-mode-enabled t
@@ -263,13 +265,14 @@ Returns non-nil if any such excessive-length line is detected."
             (forward-line)
             (setq count (1+ count))))))))
 
-(defcustom so-long-mode-hook '(so-long-inhibit-global-hl-line-mode)
+(defcustom so-long-mode-hook nil
   ;; This user option must be defined prior to `so-long-mode' to
   ;; prevent `define-derived-mode' setting its value to nil; however
   ;; the mode definition will clobber our docstring, so we will set
   ;; that after the mode has been defined.
   ""
-  :type '(repeat function)
+  :type 'hook
+  :options '(so-long-inhibit-global-hl-line-mode)
   :group 'so-long)
 
 (define-derived-mode so-long-mode nil "So long"
@@ -333,7 +336,12 @@ This happens during `after-change-major-mode-hook'."
           (when (and (boundp mode) mode)
             (funcall mode 0)))
         so-long-minor-modes)
-  (run-hooks 'so-long-hook))
+  ;; By default we set `buffer-read-only' during `so-long-hook', which can
+  ;; then cause problems if other hook functions need to modify the buffer.
+  ;; Rather than trying to control the order of the hook functions, we use
+  ;; `inhibit-read-only' to side-step the issue (also in our revert hook).
+  (let ((inhibit-read-only t))
+    (run-hooks 'so-long-hook)))
 
 (defun so-long-mode-revert ()
   "Call the `major-mode' which was selected before `so-long-mode' replaced it,
@@ -344,19 +352,15 @@ and re-process the local variables.  Lastly run `so-long-revert-hook'."
       (error "Original mode unknown."))
     (funcall so-long-original-mode)
     (hack-local-variables)
-    (run-hooks 'so-long-revert-hook)))
+    (let ((inhibit-read-only t))
+      (run-hooks 'so-long-revert-hook))))
 
 (define-key so-long-mode-map (kbd "C-c C-c") 'so-long-mode-revert)
 
 (defun so-long-make-buffer-read-only ()
   "Make a so-long buffer read-only.
 
-Called by default as the final action of `so-long-hook', as some earlier
-actions may generate warnings when performed in a read-only buffer (e.g.
-disabling `highlight-changes-mode').
-
-As such, making the buffer read-only should be the final action taken,
-to avoid any potential errors."
+Called by default in `so-long-hook'."
   (setq buffer-read-only t))
 
 (defun so-long-revert-buffer-read-only ()
