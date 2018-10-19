@@ -230,8 +230,6 @@ nil if no value was set, and a cons cell otherwise."
   (push (cons variable (symbol-value variable))
         so-long-original-values))
 
-(add-hook 'change-major-mode-hook 'so-long-change-major-mode)
-
 (defun so-long-change-major-mode ()
   "Ensures that `so-long-mode' knows the original `major-mode'
 even when invoked interactively.
@@ -479,6 +477,7 @@ again if `so-long-mode-revert' is called, however.)"
 (defun so-long-enable ()
   "Enable the so-long library's functionality."
   (interactive)
+  (add-hook 'change-major-mode-hook 'so-long-change-major-mode)
   (ad-enable-advice 'hack-local-variables 'after 'so-long--file-local-mode)
   (ad-enable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
   (ad-activate 'hack-local-variables)
@@ -488,6 +487,7 @@ again if `so-long-mode-revert' is called, however.)"
 (defun so-long-disable ()
   "Disable the so-long library's functionality."
   (interactive)
+  (remove-hook 'change-major-mode-hook 'so-long-change-major-mode)
   (ad-disable-advice 'hack-local-variables 'after 'so-long--file-local-mode)
   (ad-disable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
   (ad-activate 'hack-local-variables)
