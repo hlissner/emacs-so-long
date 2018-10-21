@@ -117,6 +117,8 @@
 ;;; Change Log:
 ;;
 ;; 0.8   - New user option `so-long-variable-overrides'.
+;;       - Refactored the default hook values using variable overrides
+;;         (and returning all the hooks to nil default values).
 ;; 0.7.6 - Bug fix for `so-long-mode-hook' losing its default value.
 ;; 0.7.5 - Documentation.
 ;;       - Added sgml-mode and nxml-mode to `so-long-target-modes'.
@@ -194,11 +196,13 @@ See also `so-long-mode-hook'."
   :group 'so-long)
 
 (defcustom so-long-variable-overrides
-  '((buffer-read-only . t))
+  '((buffer-read-only . t)
+    (global-hl-line-mode . nil))
   "Variables to override, and the values to override them with."
   :type '(alist :key-type (variable :tag "Variable")
                 :value-type (sexp :tag "Value"))
-  :options '((buffer-read-only boolean))
+  :options '((buffer-read-only boolean)
+             (global-hl-line-mode boolean))
   :group 'so-long)
 
 (defcustom so-long-hook nil
@@ -286,16 +290,6 @@ Returns non-nil if any such excessive-length line is detected."
             (forward-line)
             (setq count (1+ count))))))))
 
-(defcustom so-long-mode-hook nil
-  ;; This user option must be defined prior to `so-long-mode' to
-  ;; prevent `define-derived-mode' setting its value to nil; however
-  ;; the mode definition will clobber our docstring, so we will set
-  ;; that after the mode has been defined.
-  ""
-  :type 'hook
-  :options '(so-long-inhibit-global-hl-line-mode)
-  :group 'so-long)
-
 (define-derived-mode so-long-mode nil "So long"
   "This mode is used if line lengths exceed `so-long-threshold'.
 
@@ -342,19 +336,17 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
            (or (so-long-original 'major-mode) "<unknown>")
            (substitute-command-keys "\\[so-long-mode-revert]")))
 
-;; In order to provide a custom docstring for `so-long-mode-hook', we
-;; must set it after `so-long-mode' is defined, as `define-derived-mode'
-;; clobbers any existing docstring (see the user option definition for
-;; why we define it first).
-(put 'so-long-mode-hook 'variable-documentation
-     "List of functions to call when `so-long-mode' is invoked.
+(defcustom so-long-mode-hook nil
+  "List of functions to call when `so-long-mode' is invoked.
 
 This is the standard mode hook for `so-long-mode' which runs between
 `change-major-mode-after-body-hook' and `after-change-major-mode-hook'.
 
 Note that globalized minor modes have not yet acted.
 
-See also `so-long-hook' and `so-long-minor-modes'.")
+See also `so-long-hook' and `so-long-minor-modes'."
+  :type 'hook
+  :group 'so-long)
 
 (defun so-long-after-change-major-mode ()
   "Disable modes in `so-long-minor-modes' and run `so-long-hook' functions.
@@ -409,12 +401,6 @@ and re-process the local variables.  Lastly run `so-long-revert-hook'."
       (run-hooks 'so-long-revert-hook))))
 
 (define-key so-long-mode-map (kbd "C-c C-c") 'so-long-mode-revert)
-
-(defun so-long-inhibit-global-hl-line-mode ()
-  "Prevent `global-hl-line-mode' from activating.
-
-Called by default during `so-long-mode-hook'."
-  (setq-local global-hl-line-mode nil))
 
 (defun so-long-check-header-modes ()
   "Handles the header-comments processing in `set-auto-mode'.
