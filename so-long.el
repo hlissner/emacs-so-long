@@ -39,7 +39,8 @@
 ;; When such files are detected, we invoke `so-long-mode' in place of the mode
 ;; that Emacs selected.  This is almost identical to `fundamental-mode', and
 ;; so provides optimal performance in the buffer.  In addition, we explicitly
-;; disable a (configurable) list of minor modes with performance implications.
+;; disable certain minor modes and set buffer-local values for certain
+;; variables (all configurable), where there are performance implications.
 ;;
 ;; These kinds of minified files are typically not intended to be edited; so
 ;; not providing the usual editing mode in such cases will rarely be an issue.
@@ -86,6 +87,15 @@
 ;; inhibit it for a single buffer, and if so how best to do that, as not all
 ;; modes are alike.
 
+;; Overriding variables
+;; --------------------
+;; `so-long-variable-overrides' is an alist mapping variable symbols to values.
+;; When `so-long-mode' is invoked, the buffer-local value for each variable in
+;; the list is set to the associated value in the alist.  Use this to enforce
+;; values which will improve performance or otherwise avoid undesirable
+;; behaviours.  If the `so-long-revert' command is called, then the original
+;; values are restored.
+
 ;; Hooks
 ;; -----
 ;; Two custom hooks are available for custom behaviours.
@@ -106,6 +116,7 @@
 
 ;;; Change Log:
 ;;
+;; 0.8   - New user option `so-long-variable-overrides'.
 ;; 0.7.6 - Bug fix for `so-long-mode-hook' losing its default value.
 ;; 0.7.5 - Documentation.
 ;;       - Added sgml-mode and nxml-mode to `so-long-target-modes'.
@@ -182,6 +193,12 @@ See also `so-long-mode-hook'."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
   :group 'so-long)
 
+(defcustom so-long-variable-overrides nil
+  "Variables to override, and the values to override them with."
+  :type '(alist :key-type (variable :tag "Variable")
+                :value-type (sexp :tag "Value"))
+  :group 'so-long)
+
 (defcustom so-long-hook nil
   "List of functions to call after `so-long-mode'.
 
@@ -223,12 +240,16 @@ at all, make EXISTS non-nil.  This then returns the result of `assq' directly:
 nil if no value was set, and a cons cell otherwise."
   (if exists
       (assq key so-long-original-values)
-    (cdr (assq key so-long-original-values))))
+    (cadr (assq key so-long-original-values))))
 
 (defun so-long-remember (variable)
   "Push the `symbol-value' for VARIABLE to `so-long-original-values'."
-  (push (cons variable (symbol-value variable))
-        so-long-original-values))
+  (when (boundp variable)
+    (let ((locals (buffer-local-variables)))
+      (push (list variable
+                  (symbol-value variable)
+                  (consp (assq variable locals)))
+            so-long-original-values))))
 
 (defun so-long-change-major-mode ()
   "Ensures that `so-long-mode' knows the original `major-mode'
@@ -236,8 +257,10 @@ even when invoked interactively.
 
 Called by default during `change-major-mode-hook'."
   (unless (eq major-mode 'so-long-mode)
+    (setq so-long-original-values nil)
     (so-long-remember 'major-mode)
-    (so-long-remember 'buffer-read-only)))
+    (dolist (ovar so-long-variable-overrides)
+      (so-long-remember (car ovar)))))
 
 ;; When the line's long
 ;; When the mode's slow
@@ -290,9 +313,10 @@ When such files are detected, we invoke this mode.  This happens after
 a member (or derivative of a member) of `so-long-target-modes'.
 
 After changing modes, any active minor modes listed in `so-long-minor-modes'
-are disabled for the current buffer, and finally `so-long-hook' is run.
-These two steps occur as part of `after-change-major-mode-hook', so that
-modes controlled by globalized minor modes are also visible.
+are disabled for the current buffer, and buffer-local values are assigned to
+variables in accordance with `so-long-variable-overrides'.  Finally
+`so-long-hook' is run.  These steps occur in `after-change-major-mode-hook',
+so that minor modes controlled by globalized minor modes can also be disabled.
 
 Some globalized minor modes may be inhibited by acting in `so-long-mode-hook'.
 
@@ -306,6 +330,12 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
   ;; and other undesirable functionality.
   (add-hook 'after-change-major-mode-hook
             'so-long-after-change-major-mode :append :local)
+  ;; Override variables.  This is the first of two instances where we do this
+  ;; (the other being `so-long-after-change-major-mode').  It is desirable to
+  ;; set variables here in order to cover cases where the setting of a variable
+  ;; influences how a global minor mode behaves in this buffer.
+  (dolist (ovar so-long-variable-overrides)
+    (set (make-local-variable (car ovar)) (cdr ovar)))
   ;; Inform the user about our major mode hijacking.
   (message "Changed to %s (from %s) on account of line length. %s to revert."
            major-mode
@@ -329,12 +359,22 @@ See also `so-long-hook' and `so-long-minor-modes'.")
 (defun so-long-after-change-major-mode ()
   "Disable modes in `so-long-minor-modes' and run `so-long-hook' functions.
 
+Also override the variables in `so-long-variable-overrides'.
+
 This happens during `after-change-major-mode-hook'."
   (mapc (lambda (mode)
           (when (and (boundp mode) mode)
             (funcall mode 0)))
         so-long-minor-modes)
-  ;; By default we set `buffer-read-only' during `so-long-hook', which can
+  ;; Override variables (again).  We already did this in `so-long-mode' in
+  ;; order that variables which affect global/globalized minor modes can have
+  ;; that effect; however it's feasible that one of the minor modes disabled
+  ;; above might have reverted one of these variables, so we re-enforce them.
+  ;; (For example, disabling `visual-line-mode' sets `line-move-visual' to
+  ;; nil, when for our purposes it is preferable for it to be non-nil).
+  (dolist (ovar so-long-variable-overrides)
+    (set (make-local-variable (car ovar)) (cdr ovar)))
+  ;; By default we set `buffer-read-only' during `so-long-mode', which can
   ;; then cause problems if other hook functions need to modify the buffer.
   ;; Rather than trying to control the order of the hook functions, we use
   ;; `inhibit-read-only' to side-step the issue (also in our revert hook).
@@ -350,6 +390,22 @@ and re-process the local variables.  Lastly run `so-long-revert-hook'."
       (error "Original mode unknown."))
     (funcall so-long-original-mode)
     (hack-local-variables)
+    ;; Restore overridden variables, and run hook.
+    ;; `kill-all-local-variables' was already called by the original mode
+    ;; function, so we may be seeing global values.
+    (dolist (ovar so-long-variable-overrides)
+      (let ((remembered (so-long-original (car ovar) :exists)))
+        (when remembered
+          ;; If a variable was originally buffer-local then restore it as
+          ;; a buffer-local variable, even if the global value is a match.
+          ;;
+          ;; If the variable was originally global and the current value
+          ;; matches its original value, then leave it alone.
+          ;;
+          ;; Otherwise set it buffer-locally to the original value.
+          (unless (and (equal (symbol-value (car ovar)) (cadr remembered))
+                       (not (nth 2 remembered))) ;; originally global
+            (set (make-local-variable (car ovar)) (cadr remembered))))))
     (let ((inhibit-read-only t))
       (run-hooks 'so-long-revert-hook))))
 
