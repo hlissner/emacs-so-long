@@ -196,13 +196,19 @@ See also `so-long-mode-hook'."
   :group 'so-long)
 
 (defcustom so-long-variable-overrides
-  '((buffer-read-only . t)
-    (global-hl-line-mode . nil))
+  '((bidi-display-reordering . nil)
+    (buffer-read-only . t)
+    (global-hl-line-mode . nil)
+    (line-move-visual . t)
+    (truncate-lines . nil))
   "Variables to override, and the values to override them with."
   :type '(alist :key-type (variable :tag "Variable")
                 :value-type (sexp :tag "Value"))
-  :options '((buffer-read-only boolean)
-             (global-hl-line-mode boolean))
+  :options '((bidi-display-reordering boolean)
+             (buffer-read-only boolean)
+             (global-hl-line-mode boolean)
+             (line-move-visual boolean)
+             (truncate-lines boolean))
   :group 'so-long)
 
 (defcustom so-long-hook nil
