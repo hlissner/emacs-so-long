@@ -193,10 +193,12 @@ See also `so-long-mode-hook'."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
   :group 'so-long)
 
-(defcustom so-long-variable-overrides nil
+(defcustom so-long-variable-overrides
+  '((buffer-read-only . t))
   "Variables to override, and the values to override them with."
   :type '(alist :key-type (variable :tag "Variable")
                 :value-type (sexp :tag "Value"))
+  :options '((buffer-read-only boolean))
   :group 'so-long)
 
 (defcustom so-long-hook nil
@@ -207,13 +209,11 @@ minor modes have acted.
 
 See also `so-long-mode-hook' and `so-long-minor-modes'."
   :type 'hook
-  :options '(so-long-make-buffer-read-only)
   :group 'so-long)
 
 (defcustom so-long-revert-hook nil
   "List of functions to call after `so-long-mode-revert'."
   :type 'hook
-  :options '(so-long-revert-buffer-read-only)
   :group 'so-long)
 
 (defvar so-long-mode-enabled t
@@ -374,10 +374,9 @@ This happens during `after-change-major-mode-hook'."
   ;; nil, when for our purposes it is preferable for it to be non-nil).
   (dolist (ovar so-long-variable-overrides)
     (set (make-local-variable (car ovar)) (cdr ovar)))
-  ;; By default we set `buffer-read-only' during `so-long-mode', which can
-  ;; then cause problems if other hook functions need to modify the buffer.
-  ;; Rather than trying to control the order of the hook functions, we use
-  ;; `inhibit-read-only' to side-step the issue (also in our revert hook).
+  ;; By default we set `buffer-read-only', which can cause problems if hook
+  ;; functions need to modify the buffer.  We use `inhibit-read-only' to
+  ;; side-step the issue (and likewise in `so-long-mode-revert').
   (let ((inhibit-read-only t))
     (run-hooks 'so-long-hook)))
 
@@ -410,20 +409,6 @@ and re-process the local variables.  Lastly run `so-long-revert-hook'."
       (run-hooks 'so-long-revert-hook))))
 
 (define-key so-long-mode-map (kbd "C-c C-c") 'so-long-mode-revert)
-
-(defun so-long-make-buffer-read-only ()
-  "Make a so-long buffer read-only.
-
-Called by default in `so-long-hook'."
-  (setq buffer-read-only t))
-
-(defun so-long-revert-buffer-read-only ()
-  "Restore `buffer-read-only' to its original value.
-
-Called by default in `so-long-revert-hook'."
-  (let ((readonly (so-long-original 'buffer-read-only :exists)))
-    (when readonly
-      (setq buffer-read-only (cdr readonly)))))
 
 (defun so-long-inhibit-global-hl-line-mode ()
   "Prevent `global-hl-line-mode' from activating.
