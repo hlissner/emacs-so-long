@@ -58,7 +58,7 @@
 ;; Use M-x customize-group RET so-long RET
 ;;
 ;; The variables `so-long-target-modes', `so-long-threshold',
-;; `so-long-max-lines', and `so-long-mode-enabled' determine whether this mode
+;; `so-long-max-lines', and `so-long-enabled' determine whether this mode
 ;; will be invoked for a given buffer.  The tests are made after `set-auto-mode'
 ;; has set the normal major mode.
 
@@ -117,6 +117,7 @@
 ;;; Change Log:
 ;;
 ;; 0.8   - New user option `so-long-variable-overrides'.
+;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
 ;; 0.7.6 - Bug fix for `so-long-mode-hook' losing its default value.
@@ -226,12 +227,11 @@ See also `so-long-mode-hook' and `so-long-minor-modes'."
   :type 'hook
   :group 'so-long)
 
-(defvar so-long-mode-enabled t
+(defvar so-long-enabled t
   "Set to nil to prevent `so-long-mode' from being triggered.")
 
-(defvar so-long-mode--inhibited nil) ; internal use
-(make-variable-buffer-local 'so-long-mode--inhibited)
-(put 'so-long-mode--inhibited 'permanent-local t)
+(defvar-local so-long--inhibited nil) ; internal use
+(put 'so-long--inhibited 'permanent-local t)
 
 (defvar-local so-long-original-values nil
   "Alist holding the buffer's original `major-mode' value, and other data.
@@ -460,7 +460,7 @@ declaration."
     ;; listed, we assume that one of them is a major mode.  It's possible that
     ;; this isn't true, but the buffer would remain in fundamental-mode if that
     ;; were the case, so it is very unlikely.
-    (setq so-long-mode--inhibited modes)))
+    (setq so-long--inhibited modes)))
 
 ;; How do you solve a problem like a long line?
 ;; How do you stop a mode from slowing down?
@@ -479,7 +479,7 @@ for details).  The file-local mode will ultimately still be used, however
 This issue will eventually be resolved in Emacs."
   (when (ad-get-arg 0) ; MODE-ONLY argument to `hack-local-variables'
     ;; Inhibit `so-long-mode' if a MODE is specified.
-    (setq so-long-mode--inhibited ad-return-value)))
+    (setq so-long--inhibited ad-return-value)))
 
 (defadvice set-auto-mode (around so-long--set-auto-mode disable)
   "Maybe change to `so-long-mode' for files with very long lines.
@@ -496,12 +496,12 @@ of `so-long-target-modes'.
 Local variables are not processed after changing to `so-long-mode', as
 they might negatively affect performance.  (Local variables are processed
 again if `so-long-mode-revert' is called, however.)"
-  (setq so-long-mode--inhibited nil) ; is permanent-local
-  (when so-long-mode-enabled
-    (so-long-check-header-modes)) ; may set `so-long-mode--inhibited'
-  ad-do-it ; `set-auto-mode'      ; may set `so-long-mode--inhibited'
-  (when so-long-mode-enabled
-    (unless so-long-mode--inhibited
+  (setq so-long--inhibited nil) ; is permanent-local
+  (when so-long-enabled
+    (so-long-check-header-modes)) ; may set `so-long--inhibited'
+  ad-do-it ; `set-auto-mode'      ; may set `so-long--inhibited'
+  (when so-long-enabled
+    (unless so-long--inhibited
       (when (and (apply 'derived-mode-p so-long-target-modes)
                  (so-long-line-detected-p))
         (so-long-mode)))))
@@ -515,7 +515,7 @@ again if `so-long-mode-revert' is called, however.)"
   (ad-enable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
   (ad-activate 'hack-local-variables)
   (ad-activate 'set-auto-mode)
-  (setq so-long-mode-enabled t))
+  (setq so-long-enabled t))
 
 (defun so-long-disable ()
   "Disable the so-long library's functionality."
@@ -525,7 +525,7 @@ again if `so-long-mode-revert' is called, however.)"
   (ad-disable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
   (ad-activate 'hack-local-variables)
   (ad-activate 'set-auto-mode)
-  (setq so-long-mode-enabled nil))
+  (setq so-long-enabled nil))
 
 (defun so-long-unload-function ()
   (so-long-disable)
