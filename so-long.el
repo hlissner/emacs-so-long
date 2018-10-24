@@ -121,6 +121,7 @@
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
+;;       - Performance improvements for `so-long-line-detected-p'.
 ;; 0.7.6 - Bug fix for `so-long-mode-hook' losing its default value.
 ;; 0.7.5 - Documentation.
 ;;       - Added sgml-mode and nxml-mode to `so-long-target-modes'.
@@ -299,18 +300,45 @@ Returns non-nil if any such excessive-length line is detected.
 If `so-long-skip-leading-comments' is nil then the N lines will be counted
 starting from the first line of the buffer.  In this instance you will likely
 want to increase `so-long-max-lines' to allow for possible comments."
-  (let ((count 0))
+  (let ((count 0) start)
     (save-excursion
       (goto-char (point-min))
       (when so-long-skip-leading-comments
-        (while (comment-forward))) ;; clears whitespace at minimum
+        ;; Clears whitespace at minimum.
+        ;; We use narrowing to limit the amount of text being processed at any
+        ;; given time, where possible, as this makes things more efficient.
+        (setq start (point))
+        (while (save-restriction
+                 (narrow-to-region start (min (+ (point) so-long-threshold)
+                                              (point-max)))
+                 (goto-char start)
+                 ;; Possibilities for `comment-forward' are:
+                 ;; 0. No comment; no movement; return nil.
+                 ;; 1. Comment is <= point-max; move end of comment; return t.
+                 ;; 2. Comment is truncated; move point-max; return nil.
+                 ;; 3. Only whitespace; move end of WS; return nil.
+                 (prog1 (or (comment-forward 1) ;; Moved past a comment.
+                            (and (eobp) ;; Truncated, or WS up to point-max.
+                                 (progn ;; Widen and retry.
+                                   (widen)
+                                   (goto-char start)
+                                   (comment-forward 1))))
+                   ;; Otherwise there was no comment, and we return nil.
+                   ;; If there was whitespace, we moved past it.
+                   (setq start (point))))))
+      ;; Start looking for long lines.
+      ;; `while' will ultimately return nil if we do not `throw' a result.
       (catch 'excessive
         (while (< count so-long-max-lines)
-          (if (> (- (line-end-position 1) (point))
-                 so-long-threshold)
-              (throw 'excessive t)
-            (forward-line)
-            (setq count (1+ count))))))))
+          (save-restriction
+            (narrow-to-region (point) (min (+ (point) 1 so-long-threshold)
+                                           (point-max)))
+            (if (> (- (line-end-position 1) (point))
+                   so-long-threshold)
+                (throw 'excessive t)
+              (when (> (forward-line) 0)
+                (throw 'excessive nil))
+              (setq count (1+ count)))))))))
 
 (define-derived-mode so-long-mode nil "So long"
   "This mode is used if line lengths exceed `so-long-threshold'.
