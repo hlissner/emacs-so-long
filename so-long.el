@@ -117,6 +117,7 @@
 ;;; Change Log:
 ;;
 ;; 0.8   - New user option `so-long-variable-overrides'.
+;;       - New user option `so-long-skip-leading-comments'.
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
@@ -160,8 +161,18 @@ See `so-long-line-detected-p' for details."
 (defcustom so-long-max-lines 5
   "Number of non-blank, non-comment lines to test for excessive length.
 
+If `so-long-skip-leading-comments' is nil then comments and blank lines will
+be counted.
+
 See `so-long-line-detected-p' for details."
   :type 'integer
+  :group 'so-long)
+
+(defcustom so-long-skip-leading-comments t
+  "Non-nil to ignore all leading comments and whitespace.
+
+See `so-long-line-detected-p' for details."
+  :type 'boolean
   :group 'so-long)
 
 (defcustom so-long-target-modes
@@ -283,11 +294,16 @@ Called by default during `change-major-mode-hook'."
 buffer will be tested for excessive length (where \"excessive\" means above
 `so-long-threshold', and N is `so-long-max-lines').
 
-Returns non-nil if any such excessive-length line is detected."
+Returns non-nil if any such excessive-length line is detected.
+
+If `so-long-skip-leading-comments' is nil then the N lines will be counted
+starting from the first line of the buffer.  In this instance you will likely
+want to increase `so-long-max-lines' to allow for possible comments."
   (let ((count 0))
     (save-excursion
       (goto-char (point-min))
-      (while (comment-forward)) ;; clears whitespace at minimum
+      (when so-long-skip-leading-comments
+        (while (comment-forward))) ;; clears whitespace at minimum
       (catch 'excessive
         (while (< count so-long-max-lines)
           (if (> (- (line-end-position 1) (point))
