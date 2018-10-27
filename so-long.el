@@ -474,8 +474,7 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
   ;; (the other being `so-long-after-change-major-mode').  It is desirable to
   ;; set variables here in order to cover cases where the setting of a variable
   ;; influences how a global minor mode behaves in this buffer.
-  (dolist (ovar so-long-variable-overrides)
-    (set (make-local-variable (car ovar)) (cdr ovar)))
+  (so-long-override-variables)
   ;; Inform the user about our major mode hijacking.
   (message (concat "Changed to %s (from %s)"
                    (unless (eq this-command 'so-long-mode)
@@ -503,23 +502,47 @@ See also `so-long-hook'."
 Also override the variables in `so-long-variable-overrides'.
 
 This happens during `after-change-major-mode-hook'."
-  (mapc (lambda (mode)
-          (when (and (boundp mode) mode)
-            (funcall mode 0)))
-        so-long-minor-modes)
+  ;; Disable minor modes.
+  (so-long-disable-minor-modes)
   ;; Override variables (again).  We already did this in `so-long-mode' in
   ;; order that variables which affect global/globalized minor modes can have
   ;; that effect; however it's feasible that one of the minor modes disabled
   ;; above might have reverted one of these variables, so we re-enforce them.
   ;; (For example, disabling `visual-line-mode' sets `line-move-visual' to
   ;; nil, when for our purposes it is preferable for it to be non-nil).
-  (dolist (ovar so-long-variable-overrides)
-    (set (make-local-variable (car ovar)) (cdr ovar)))
+  (so-long-override-variables)
   ;; By default we set `buffer-read-only', which can cause problems if hook
   ;; functions need to modify the buffer.  We use `inhibit-read-only' to
   ;; side-step the issue (and likewise in `so-long-mode-revert').
   (let ((inhibit-read-only t))
     (run-hooks 'so-long-hook)))
+
+(defun so-long-disable-minor-modes ()
+  "Disable any active minor modes listed in `so-long-minor-modes'."
+  (dolist (mode so-long-minor-modes)
+    (when (and (boundp mode) mode)
+      (funcall mode 0))))
+
+(defun so-long-override-variables ()
+  "Process `so-long-variable-overrides'."
+  (dolist (ovar so-long-variable-overrides)
+    (set (make-local-variable (car ovar)) (cdr ovar))))
+
+(defun so-long-restore-variables ()
+  "Restore the remembered values for the overridden variables."
+  (dolist (ovar so-long-variable-overrides)
+    (let ((remembered (so-long-original (car ovar) :exists)))
+      (when remembered
+        ;; If a variable was originally buffer-local then restore it as
+        ;; a buffer-local variable, even if the global value is a match.
+        ;;
+        ;; If the variable was originally global and the current value
+        ;; matches its original value, then leave it alone.
+        ;;
+        ;; Otherwise set it buffer-locally to the original value.
+        (unless (and (equal (symbol-value (car ovar)) (cadr remembered))
+                     (not (nth 2 remembered))) ;; originally global
+          (set (make-local-variable (car ovar)) (cadr remembered)))))))
 
 (defun so-long-mode-revert ()
   "Call the `major-mode' which was selected before `so-long-mode' replaced it,
@@ -533,19 +556,7 @@ and re-process the local variables.  Lastly run `so-long-revert-hook'."
     ;; Restore overridden variables, and run hook.
     ;; `kill-all-local-variables' was already called by the original mode
     ;; function, so we may be seeing global values.
-    (dolist (ovar so-long-variable-overrides)
-      (let ((remembered (so-long-original (car ovar) :exists)))
-        (when remembered
-          ;; If a variable was originally buffer-local then restore it as
-          ;; a buffer-local variable, even if the global value is a match.
-          ;;
-          ;; If the variable was originally global and the current value
-          ;; matches its original value, then leave it alone.
-          ;;
-          ;; Otherwise set it buffer-locally to the original value.
-          (unless (and (equal (symbol-value (car ovar)) (cadr remembered))
-                       (not (nth 2 remembered))) ;; originally global
-            (set (make-local-variable (car ovar)) (cadr remembered))))))
+    (so-long-restore-variables)
     (let ((inhibit-read-only t))
       (run-hooks 'so-long-revert-hook))))
 
