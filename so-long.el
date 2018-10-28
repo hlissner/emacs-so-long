@@ -425,16 +425,14 @@ want to increase `so-long-max-lines' to allow for possible comments."
       ;; Start looking for long lines.
       ;; `while' will ultimately return nil if we do not `throw' a result.
       (catch 'excessive
-        (while (< count so-long-max-lines)
+        (while (and (< count so-long-max-lines) (not (eobp)))
           (save-restriction
             (narrow-to-region (point) (min (+ (point) 1 so-long-threshold)
                                            (point-max)))
-            (if (> (- (line-end-position 1) (point))
-                   so-long-threshold)
-                (throw 'excessive t)
-              (when (> (forward-line) 0)
-                (throw 'excessive nil))
-              (setq count (1+ count)))))))))
+            (when (< (+ (point) so-long-threshold)
+                     (progn (forward-line 1) (point)))
+              (throw 'excessive t))
+            (setq count (1+ count))))))))
 
 (defun so-long-function-longlines-mode ()
   "Enable minor mode `longlines-mode'.
