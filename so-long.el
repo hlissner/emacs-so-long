@@ -49,6 +49,9 @@
 ;; easily in any given buffer using `so-long-mode-revert' (the key binding for
 ;; which is advertised when the mode is entered).
 ;;
+;; Alternatively, the user option `so-long-function' allows functions other
+;; than `so-long-mode' to be invoked in response to long lines.
+;;
 ;; Note that while the measures taken by this library can improve performance
 ;; dramatically when dealing with such files, this library does not have any
 ;; effect on the fundamental limitations of the Emacs redisplay code itself;
@@ -68,10 +71,10 @@
 ;; -------------
 ;; Use M-x customize-group RET so-long RET
 ;;
-;; The variables `so-long-target-modes', `so-long-threshold',
-;; `so-long-max-lines', and `so-long-enabled' determine whether this mode
-;; will be invoked for a given buffer.  The tests are made after `set-auto-mode'
-;; has set the normal major mode.
+;; Variables `so-long-target-modes', `so-long-threshold', `so-long-max-lines',
+;; and `so-long-enabled' determine whether action will be taken in a given
+;; buffer.  The tests are made after `set-auto-mode' has set the normal major
+;; mode.  The `so-long-function' variable determines what will be done.
 
 ;; Inhibiting and disabling minor modes
 ;; ------------------------------------
@@ -158,6 +161,7 @@
 ;;
 ;; 0.8   - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
+;;       - New user option `so-long-function' supporting alternative actions.
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
@@ -193,7 +197,7 @@
   :group 'convenience)
 
 (defcustom so-long-threshold 250
-  "Maximum line length permitted before invoking `so-long-mode'.
+  "Maximum line length permitted before invoking `so-long-function'.
 
 See `so-long-line-detected-p' for details."
   :type 'integer
@@ -218,11 +222,29 @@ See `so-long-line-detected-p' for details."
 
 (defcustom so-long-target-modes
   '(prog-mode css-mode sgml-mode nxml-mode)
-  "`so-long-mode' affects only these modes and their derivatives.
+  "`so-long' affects only these modes and their derivatives.
 
 Our primary use-case is minified programming code, so `prog-mode' covers
 most cases, but there are some exceptions to this."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
+  :group 'so-long)
+
+(defcustom so-long-function 'so-long-mode
+  "The function to call when long lines are detected.
+
+Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.
+
+The specified function will be called with no arguments.
+
+The default value is `so-long-mode', which replaces the original major mode.
+This is the only value for which `so-long-minor-modes',
+`so-long-variable-overrides', and `so-long-hook' will be automatically
+processed; but custom functions may do these things manually -- refer to
+`so-long-after-change-major-mode'."
+  :type '(radio (const :tag "Change major mode to so-long-mode"
+                       so-long-mode)
+                (function :tag "Custom function")
+                (const :tag "Do nothing" nil))
   :group 'so-long)
 
 (defcustom so-long-minor-modes
@@ -301,7 +323,7 @@ See also `so-long-mode-hook' and `so-long-minor-modes'."
   :group 'so-long)
 
 (defvar so-long-enabled t
-  "Set to nil to prevent `so-long-mode' from being triggered.")
+  "Set to nil to prevent `so-long-function' from being triggered.")
 
 (defvar-local so-long--inhibited nil) ; internal use
 (put 'so-long--inhibited 'permanent-local t)
@@ -402,7 +424,7 @@ want to increase `so-long-max-lines' to allow for possible comments."
               (setq count (1+ count)))))))))
 
 (define-derived-mode so-long-mode nil "So long"
-  "This mode is used if line lengths exceed `so-long-threshold'.
+  "This major mode is the default `so-long-function' option.
 
 Many Emacs modes struggle with buffers which contain excessively long lines,
 and may consequently cause unacceptable performance issues.
@@ -583,21 +605,21 @@ File-local header comments are currently an exception (see the commentary
 for details).  The file-local mode will ultimately still be used, however
 `so-long-mode' still runs first, thus displaying a misleading message.
 This issue will eventually be resolved in Emacs."
-  (when (ad-get-arg 0) ; MODE-ONLY argument to `hack-local-variables'
-    ;; Inhibit `so-long-mode' if a MODE is specified.
-    (setq so-long--inhibited ad-return-value)))
+  (and (ad-get-arg 0) ; MODE-ONLY argument to `hack-local-variables'
+       ;; Inhibit `so-long-mode' if a MODE is specified.
+       (eq so-long-function 'so-long-mode)
+       (setq so-long--inhibited ad-return-value)))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
 
 (defadvice set-auto-mode (around so-long--set-auto-mode disable)
-  "Maybe change to `so-long-mode' for files with very long lines.
+  "Maybe trigger `so-long-function' for files with very long lines.
 
 This advice acts after `set-auto-mode' has set the buffer's major mode.
 
 We can't act before this point, because some major modes must be exempt
-from `so-long-mode' (binary file modes, for example).  Instead, we act
-only when the selected major mode is a member (or derivative of a member)
-of `so-long-target-modes'.
+\(binary file modes, for example).  Instead, we act only when the selected
+major mode is a member (or derivative of a member) of `so-long-target-modes'.
 
 `so-long-line-detected-p' then determines whether the mode change is needed."
   (setq so-long--inhibited nil) ; is permanent-local
@@ -607,8 +629,9 @@ of `so-long-target-modes'.
   (when so-long-enabled
     (unless so-long--inhibited
       (when (and (apply 'derived-mode-p so-long-target-modes)
-                 (so-long-line-detected-p))
-        (so-long-mode)))))
+                 (so-long-line-detected-p)
+                 (functionp so-long-function))
+        (funcall so-long-function)))))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
 
