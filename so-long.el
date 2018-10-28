@@ -142,9 +142,7 @@
 ;;         '(sgml-mode nxml-mode))
 ;;   ;; Additional buffer-local minor modes to disable.
 ;;   (mapc (apply-partially 'add-to-list 'so-long-minor-modes)
-;;         '(hl-sexp-mode diff-hl-mode diff-hl-amend-mode diff-hl-flydiff-mode
-;;                        dtrt-indent-mode idle-highlight-mode
-;;                        rainbow-delimiters-mode))
+;;         '(diff-hl-mode diff-hl-amend-mode diff-hl-flydiff-mode))
 ;;   ;; Additional variables to override.
 ;;   (mapc (apply-partially 'add-to-list 'so-long-variable-overrides)
 ;;         '((show-trailing-whitespace . nil)
@@ -228,6 +226,7 @@ most cases, but there are some exceptions to this."
   :group 'so-long)
 
 (defcustom so-long-minor-modes
+  ;; In sorted groups.
   '(font-lock-mode ;; (Generally the most important).
     ;; Other standard minor modes:
     display-line-numbers-mode
@@ -239,6 +238,14 @@ most cases, but there are some exceptions to this."
     prettify-symbols-mode
     visual-line-mode
     whitespace-mode
+    ;; Known third-party modes-of-interest:
+    diff-hl-amend-mode
+    diff-hl-flydiff-mode
+    diff-hl-mode
+    dtrt-indent-mode
+    hl-sexp-mode
+    idle-highlight-mode
+    rainbow-delimiters-mode
     )
   ;; It's not clear to me whether all of these would be problematic, but they
   ;; seemed like reasonable targets.  Some are certainly excessive in smaller
@@ -255,7 +262,10 @@ modes can also be targeted.
 
 `so-long-hook' can be used where more custom behaviour is desired.
 
-See also `so-long-mode-hook'."
+See also `so-long-mode-hook'.
+
+Please submit bug reports to recommend additional modes for this list, whether
+they are in Emacs core, GNU ELPA, or elsewhere."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
   :group 'so-long)
 
