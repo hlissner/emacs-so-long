@@ -162,6 +162,8 @@
 ;; 0.8   - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-function' supporting alternative actions.
+;;       - Support retaining the original major mode while still disabling
+;;         minor modes and overriding variables.
 ;;       - Support `longlines-mode' as a `so-long-function' option.
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
@@ -240,15 +242,18 @@ Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.
 The specified function will be called with no arguments.
 
 The default value is `so-long-mode', which replaces the original major mode.
-This is the only value for which `so-long-minor-modes',
-`so-long-variable-overrides', and `so-long-hook' will be automatically
-processed; but custom functions may do these things manually -- refer to
-`so-long-after-change-major-mode'.
+Alternatively, `so-long-function-overrides-only' retains the original major mode
+while still disabling minor modes and overriding variables.  These are the only
+values for which `so-long-minor-modes', `so-long-variable-overrides', and
+`so-long-hook' will be automatically processed; but custom functions may do
+these things manually -- refer to `so-long-after-change-major-mode'.
 
 Minor mode `longlines-mode' from longlines.el (see which) is also supported as a
 standard option (`so-long-function-longlines-mode')."
   :type '(radio (const :tag "Change major mode to so-long-mode"
                        so-long-mode)
+                (const :tag "Disable minor modes and override variables"
+                       so-long-function-overrides-only)
                 (const :tag "Enable longlines-mode"
                        so-long-function-longlines-mode)
                 (function :tag "Custom function")
@@ -437,6 +442,17 @@ want to increase `so-long-max-lines' to allow for possible comments."
 This is a `so-long-function' option."
   (require 'longlines)
   (longlines-mode 1))
+
+(defun so-long-function-overrides-only ()
+  "Disable minor modes and override variables, but retain the major mode.
+
+Runs `so-long-hook'.
+
+This is a `so-long-function' option."
+  (so-long-disable-minor-modes)
+  (so-long-override-variables)
+  (let ((inhibit-read-only t))
+    (run-hooks 'so-long-hook)))
 
 (define-derived-mode so-long-mode nil "So long"
   "This major mode is the default `so-long-function' option.
