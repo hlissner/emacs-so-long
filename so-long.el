@@ -162,6 +162,7 @@
 ;; 0.8   - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-function' supporting alternative actions.
+;;       - Support `longlines-mode' as a `so-long-function' option.
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
@@ -190,6 +191,8 @@
 ;; 0.1   - Experimental.
 
 ;;; Code:
+
+(declare-function longlines-mode "longlines")
 
 (defgroup so-long nil
   "Prevent unacceptable performance degradation with very long lines."
@@ -240,9 +243,14 @@ The default value is `so-long-mode', which replaces the original major mode.
 This is the only value for which `so-long-minor-modes',
 `so-long-variable-overrides', and `so-long-hook' will be automatically
 processed; but custom functions may do these things manually -- refer to
-`so-long-after-change-major-mode'."
+`so-long-after-change-major-mode'.
+
+Minor mode `longlines-mode' from longlines.el (see which) is also supported as a
+standard option (`so-long-function-longlines-mode')."
   :type '(radio (const :tag "Change major mode to so-long-mode"
                        so-long-mode)
+                (const :tag "Enable longlines-mode"
+                       so-long-function-longlines-mode)
                 (function :tag "Custom function")
                 (const :tag "Do nothing" nil))
   :group 'so-long)
@@ -422,6 +430,13 @@ want to increase `so-long-max-lines' to allow for possible comments."
               (when (> (forward-line) 0)
                 (throw 'excessive nil))
               (setq count (1+ count)))))))))
+
+(defun so-long-function-longlines-mode ()
+  "Enable minor mode `longlines-mode'.
+
+This is a `so-long-function' option."
+  (require 'longlines)
+  (longlines-mode 1))
 
 (define-derived-mode so-long-mode nil "So long"
   "This major mode is the default `so-long-function' option.
