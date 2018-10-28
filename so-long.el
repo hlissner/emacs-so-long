@@ -211,11 +211,15 @@ See `so-long-line-detected-p' for details."
 (defcustom so-long-max-lines 5
   "Number of non-blank, non-comment lines to test for excessive length.
 
+If nil then all lines will be tested, until either a long line is detected,
+or the end of the buffer is reached.
+
 If `so-long-skip-leading-comments' is nil then comments and blank lines will
 be counted.
 
 See `so-long-line-detected-p' for details."
-  :type 'integer
+  :type '(choice (integer :tag "Limit")
+                 (const :tag "Unlimited" nil))
   :group 'so-long)
 
 (defcustom so-long-skip-leading-comments t
@@ -425,7 +429,9 @@ want to increase `so-long-max-lines' to allow for possible comments."
       ;; Start looking for long lines.
       ;; `while' will ultimately return nil if we do not `throw' a result.
       (catch 'excessive
-        (while (and (< count so-long-max-lines) (not (eobp)))
+        (while (and (not (eobp))
+                    (or (not so-long-max-lines)
+                        (< count so-long-max-lines)))
           (save-restriction
             (narrow-to-region (point) (min (+ (point) 1 so-long-threshold)
                                            (point-max)))
