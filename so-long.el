@@ -425,20 +425,33 @@ want to increase `so-long-max-lines' to allow for possible comments."
                                    (comment-forward 1))))
                    ;; Otherwise there was no comment, and we return nil.
                    ;; If there was whitespace, we moved past it.
-                   (setq start (point))))))
+                   (setq start (point)))))
+        ;; We're at the first non-comment line, but we may have moved past
+        ;; indentation whitespace, so move back to the beginning of the line.
+        (forward-line 0))
       ;; Start looking for long lines.
       ;; `while' will ultimately return nil if we do not `throw' a result.
       (catch 'excessive
         (while (and (not (eobp))
                     (or (not so-long-max-lines)
                         (< count so-long-max-lines)))
+          (setq start (point))
           (save-restriction
-            (narrow-to-region (point) (min (+ (point) 1 so-long-threshold)
-                                           (point-max)))
-            (when (< (+ (point) so-long-threshold)
-                     (progn (forward-line 1) (point)))
-              (throw 'excessive t))
-            (setq count (1+ count))))))))
+            (narrow-to-region start (min (+ start 1 so-long-threshold)
+                                         (point-max)))
+            (forward-line 1))
+          ;; If point is not now at the beginning of a line, then the previous
+          ;; line was long -- with the exception of when point is at the end of
+          ;; the buffer (bearing in mind that we have widened again), in which
+          ;; case there was a short final line with no newline.  There is an
+          ;; edge case when such a final line is exactly (1+ so-long-threshold)
+          ;; chars long, so if we're at (eobp) we need to verify the length in
+          ;; order to be consistent.
+          (unless (or (bolp)
+                      (and (eobp) (<= (- (point) start)
+                                      so-long-threshold)))
+            (throw 'excessive t))
+          (setq count (1+ count)))))))
 
 (defun so-long-function-longlines-mode ()
   "Enable minor mode `longlines-mode'.
