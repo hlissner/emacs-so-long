@@ -664,7 +664,10 @@ File-local header comments are currently an exception (see the commentary
 for details).  The file-local mode will ultimately still be used, however
 `so-long-mode' still runs first, thus displaying a misleading message.
 This issue will eventually be resolved in Emacs."
-  (and (ad-get-arg 0) ; MODE-ONLY argument to `hack-local-variables'
+  ;; The first arg to `hack-local-variables' is HANDLE-MODE since Emacs 26.1,
+  ;; and MODE-ONLY in earlier versions.  In either case we are interested in
+  ;; whether it has the value `t'.
+  (and (eq (ad-get-arg 0) t)
        ;; Inhibit `so-long-mode' if a MODE is specified.
        (eq so-long-function 'so-long-mode)
        (setq so-long--inhibited ad-return-value)))
