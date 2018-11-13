@@ -75,6 +75,8 @@
 ;; and `so-long-enabled' determine whether action will be taken in a given
 ;; buffer.  The tests are made after `set-auto-mode' has set the normal major
 ;; mode.  The `so-long-function' variable determines what will be done.
+;;
+;; You can also use M-x so-long to invoke the behaviour manually.
 
 ;; Inhibiting and disabling minor modes
 ;; ------------------------------------
@@ -162,6 +164,7 @@
 ;; 0.8   - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-function' supporting alternative actions.
+;;       - New command `so-long' to invoke `so-long-function' interactively.
 ;;       - Support retaining the original major mode while still disabling
 ;;         minor modes and overriding variables.
 ;;       - Support `longlines-mode' as a `so-long-function' option.
@@ -239,11 +242,11 @@ most cases, but there are some exceptions to this."
   :group 'so-long)
 
 (defcustom so-long-function 'so-long-mode
-  "The function to call when long lines are detected.
+  "The function called by `so-long' when long lines are detected.
+
+This should be set in conjunction with `so-long-revert-function'.
 
 Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.
-
-The specified function will be called with no arguments.
 
 The default value is `so-long-mode', which replaces the original major mode.
 Alternatively, `so-long-function-overrides-only' retains the original major mode
@@ -379,10 +382,7 @@ even when invoked interactively.
 
 Called by default during `change-major-mode-hook'."
   (unless (eq major-mode 'so-long-mode)
-    (setq so-long-original-values nil)
-    (so-long-remember 'major-mode)
-    (dolist (ovar so-long-variable-overrides)
-      (so-long-remember (car ovar)))))
+    (so-long-remember 'major-mode)))
 
 ;; When the line's long
 ;; When the mode's slow
@@ -510,7 +510,8 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
   (so-long-override-variables)
   ;; Inform the user about our major mode hijacking.
   (message (concat "Changed to %s (from %s)"
-                   (unless (eq this-command 'so-long-mode)
+                   (unless (or (eq this-command 'so-long-mode)
+                               (eq this-command 'so-long))
                      " on account of line length")
                    ".  %s to revert.")
            major-mode
@@ -693,9 +694,23 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
       (when (and (apply 'derived-mode-p so-long-target-modes)
                  (so-long-line-detected-p)
                  (functionp so-long-function))
-        (funcall so-long-function)))))
+        (so-long)))))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
+
+;;;###autoload
+(defun so-long ()
+  "Invoke `so-long-function'."
+  (interactive)
+  ;; Remember original settings.
+  (setq so-long-original-values nil)
+  (dolist (ovar so-long-variable-overrides)
+    (so-long-remember (car ovar)))
+  (dolist (mode so-long-minor-modes)
+    (when (and (boundp mode) mode)
+      (so-long-remember mode)))
+  ;; Call the configured `so-long-function'.
+  (funcall so-long-function))
 
 ;;;###autoload
 (defun so-long-enable ()
