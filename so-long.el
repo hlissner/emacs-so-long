@@ -111,10 +111,9 @@
 ;; `so-long-mode-hook' is the standard major mode hook, which runs between
 ;; `change-major-mode-after-body-hook' and `after-change-major-mode-hook'.
 ;;
-;; `so-long-hook' runs during `after-change-major-mode-hook', but after
-;; globalized minor modes have acted (because we call `add-hook' with the
-;; APPEND argument, and globalized modes do not).  This hook runs immediately
-;; after `so-long-minor-modes' has been processed.
+;; `so-long-hook' runs after `so-long-function' has finished.  Note that for
+;; the default value `so-long-mode', this means globalized minor modes have
+;; also finished acting.
 ;;
 ;; Lastly, if the `so-long-revert' command is used to restore the original
 ;; major mode then, once that has happened, `so-long-revert-hook' is run.
@@ -251,12 +250,15 @@ Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.
 The default value is `so-long-mode', which replaces the original major mode.
 Alternatively, `so-long-function-overrides-only' retains the original major mode
 while still disabling minor modes and overriding variables.  These are the only
-values for which `so-long-minor-modes', `so-long-variable-overrides', and
-`so-long-hook' will be automatically processed; but custom functions may do
-these things manually -- refer to `so-long-after-change-major-mode'.
+values for which `so-long-minor-modes' and `so-long-variable-overrides' will be
+automatically processed; but custom functions may do these things manually --
+refer to `so-long-after-change-major-mode'.
 
 Minor mode `longlines-mode' from longlines.el (see which) is also supported as a
-standard option (`so-long-function-longlines-mode')."
+standard option (`so-long-function-longlines-mode').
+
+The specified function will be called with no arguments, after which
+`so-long-hook' runs."
   :type '(radio (const :tag "Change major mode to so-long-mode"
                        so-long-mode)
                 (const :tag "Disable minor modes and override variables"
@@ -328,12 +330,9 @@ they are in Emacs core, GNU ELPA, or elsewhere."
   :group 'so-long)
 
 (defcustom so-long-hook nil
-  "List of functions to call after `so-long-mode'.
+  "List of functions to call after `so-long' is called.
 
-This hook runs during `after-change-major-mode-hook', and after any globalized
-minor modes have acted.
-
-See also `so-long-mode-hook' and `so-long-minor-modes'."
+This hook runs after `so-long-function' has been called in `so-long'."
   :type 'hook
   :group 'so-long)
 
@@ -463,13 +462,9 @@ This is a `so-long-function' option."
 (defun so-long-function-overrides-only ()
   "Disable minor modes and override variables, but retain the major mode.
 
-Runs `so-long-hook'.
-
 This is a `so-long-function' option."
   (so-long-disable-minor-modes)
-  (so-long-override-variables)
-  (let ((inhibit-read-only t))
-    (run-hooks 'so-long-hook)))
+  (so-long-override-variables))
 
 (define-derived-mode so-long-mode nil "So long"
   "This major mode is the default `so-long-function' option.
@@ -489,9 +484,9 @@ a member (or derivative of a member) of `so-long-target-modes'.
 
 After changing modes, any active minor modes listed in `so-long-minor-modes'
 are disabled for the current buffer, and buffer-local values are assigned to
-variables in accordance with `so-long-variable-overrides'.  Finally
-`so-long-hook' is run.  These steps occur in `after-change-major-mode-hook',
-so that minor modes controlled by globalized minor modes can also be disabled.
+variables in accordance with `so-long-variable-overrides'.  These steps occur
+in `after-change-major-mode-hook', so that minor modes controlled by globalized
+minor modes can also be disabled.
 
 Some globalized minor modes may be inhibited by acting in `so-long-mode-hook'.
 
@@ -531,11 +526,9 @@ See also `so-long-hook'."
   :group 'so-long)
 
 (defun so-long-after-change-major-mode ()
-  "Disable modes in `so-long-minor-modes' and run `so-long-hook' functions.
+  "Run by `so-long-mode' in `after-change-major-mode-hook'.
 
-Also override the variables in `so-long-variable-overrides'.
-
-This happens during `after-change-major-mode-hook'."
+Calls `so-long-disable-minor-modes' and `so-long-override-variables'."
   ;; Disable minor modes.
   (so-long-disable-minor-modes)
   ;; Override variables (again).  We already did this in `so-long-mode' in
@@ -544,12 +537,7 @@ This happens during `after-change-major-mode-hook'."
   ;; above might have reverted one of these variables, so we re-enforce them.
   ;; (For example, disabling `visual-line-mode' sets `line-move-visual' to
   ;; nil, when for our purposes it is preferable for it to be non-nil).
-  (so-long-override-variables)
-  ;; By default we set `buffer-read-only', which can cause problems if hook
-  ;; functions need to modify the buffer.  We use `inhibit-read-only' to
-  ;; side-step the issue (and likewise in `so-long-mode-revert').
-  (let ((inhibit-read-only t))
-    (run-hooks 'so-long-hook)))
+  (so-long-override-variables))
 
 (defun so-long-disable-minor-modes ()
   "Disable any active minor modes listed in `so-long-minor-modes'."
@@ -700,7 +688,7 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
 
 ;;;###autoload
 (defun so-long ()
-  "Invoke `so-long-function'."
+  "Invoke `so-long-function' and run `so-long-hook'."
   (interactive)
   ;; Remember original settings.
   (setq so-long-original-values nil)
@@ -710,7 +698,13 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
     (when (and (boundp mode) mode)
       (so-long-remember mode)))
   ;; Call the configured `so-long-function'.
-  (funcall so-long-function))
+  (funcall so-long-function)
+  ;; Run `so-long-hook'.
+  ;; By default we set `buffer-read-only', which can cause problems if hook
+  ;; functions need to modify the buffer.  We use `inhibit-read-only' to
+  ;; side-step the issue (and likewise in `so-long-revert').
+  (let ((inhibit-read-only t))
+    (run-hooks 'so-long-hook)))
 
 ;;;###autoload
 (defun so-long-enable ()
