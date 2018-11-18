@@ -284,6 +284,8 @@ The specified function will be called with no arguments, after which
 `so-long-revert-hook' runs."
   :type '(radio (const :tag "Revert so-long-mode"
                        so-long-mode-revert)
+                (const :tag "Revert minor modes and overridden variables"
+                       so-long-revert-function-overrides-only)
                 (const :tag "Revert longlines-mode"
                        so-long-revert-function-longlines-mode)
                 (function :tag "Custom function")
@@ -496,6 +498,11 @@ This is a `so-long-function' option."
 This is a `so-long-function' option."
   (so-long-disable-minor-modes)
   (so-long-override-variables))
+
+(defun so-long-revert-function-overrides-only ()
+  "Restore original state of the overridden minor modes and variables."
+  (so-long-restore-minor-modes)
+  (so-long-restore-variables))
 
 (define-derived-mode so-long-mode nil "So long"
   "This major mode is the default `so-long-function' option.
