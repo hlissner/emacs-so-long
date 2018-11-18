@@ -163,7 +163,9 @@
 ;; 0.8   - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-function' supporting alternative actions.
+;;       - New user option `so-long-revert-function'.
 ;;       - New command `so-long' to invoke `so-long-function' interactively.
+;;       - New command `so-long-revert' to invoke `so-long-revert-function'.
 ;;       - Support retaining the original major mode while still disabling
 ;;         minor modes and overriding variables.
 ;;       - Support `longlines-mode' as a `so-long-function' option.
@@ -269,6 +271,22 @@ The specified function will be called with no arguments, after which
                 (const :tag "Do nothing" nil))
   :group 'so-long)
 
+(defcustom so-long-revert-function 'so-long-mode-revert
+  "The function to call when `so-long-revert' is invoked.
+
+This should be set in conjunction with `so-long-function'.
+
+The default value is `so-long-mode-revert', which reverts the behaviour
+of `so-long-mode', the default `so-long-function' value.
+
+The specified function will be called with no arguments, after which
+`so-long-revert-hook' runs."
+  :type '(radio (const :tag "Revert so-long-mode"
+                       so-long-mode-revert)
+                (function :tag "Custom function")
+                (const :tag "Do nothing" nil))
+  :group 'so-long)
+
 (defcustom so-long-minor-modes
   ;; In sorted groups.
   '(font-lock-mode ;; (Generally the most important).
@@ -337,7 +355,7 @@ This hook runs after `so-long-function' has been called in `so-long'."
   :group 'so-long)
 
 (defcustom so-long-revert-hook nil
-  "List of functions to call after `so-long-mode-revert'."
+  "List of functions to call after `so-long-revert' is called."
   :type 'hook
   :group 'so-long)
 
@@ -511,7 +529,7 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
                    ".  %s to revert.")
            major-mode
            (or (so-long-original 'major-mode) "<unknown>")
-           (substitute-command-keys "\\[so-long-mode-revert]")))
+           (substitute-command-keys "\\[so-long-revert]")))
 
 (defcustom so-long-mode-hook nil
   "List of functions to call when `so-long-mode' is invoked.
@@ -567,8 +585,9 @@ Calls `so-long-disable-minor-modes' and `so-long-override-variables'."
           (set (make-local-variable (car ovar)) (cadr remembered)))))))
 
 (defun so-long-mode-revert ()
-  "Call the `major-mode' which was selected before `so-long-mode' replaced it,
-and re-process the local variables.  Lastly run `so-long-revert-hook'."
+  "Call the `major-mode' which was selected before `so-long-mode' replaced it.
+
+Re-process local variables, and restore overridden variables."
   (interactive)
   (let ((so-long-original-mode (so-long-original 'major-mode)))
     (unless so-long-original-mode
@@ -578,11 +597,10 @@ and re-process the local variables.  Lastly run `so-long-revert-hook'."
     ;; Restore overridden variables, and run hook.
     ;; `kill-all-local-variables' was already called by the original mode
     ;; function, so we may be seeing global values.
-    (so-long-restore-variables)
-    (let ((inhibit-read-only t))
-      (run-hooks 'so-long-revert-hook))))
+    (so-long-restore-variables)))
 
-(define-key so-long-mode-map (kbd "C-c C-c") 'so-long-mode-revert)
+(define-key so-long-mode-map (kbd "C-c C-c") 'so-long-revert)
+
 
 (defun so-long-check-header-modes ()
   "Handles the header-comments processing in `set-auto-mode'.
@@ -705,6 +723,13 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   ;; side-step the issue (and likewise in `so-long-revert').
   (let ((inhibit-read-only t))
     (run-hooks 'so-long-hook)))
+
+(defun so-long-revert ()
+  "Invoke `so-long-revert-function' and run `so-long-revert-hook'."
+  (interactive)
+  (funcall so-long-revert-function)
+  (let ((inhibit-read-only t))
+    (run-hooks 'so-long-revert-hook)))
 
 ;;;###autoload
 (defun so-long-enable ()
