@@ -199,6 +199,7 @@
 ;;; Code:
 
 (declare-function longlines-mode "longlines")
+(defvar longlines-mode)
 
 (defgroup so-long nil
   "Prevent unacceptable performance degradation with very long lines."
@@ -283,6 +284,8 @@ The specified function will be called with no arguments, after which
 `so-long-revert-hook' runs."
   :type '(radio (const :tag "Revert so-long-mode"
                        so-long-mode-revert)
+                (const :tag "Revert longlines-mode"
+                       so-long-revert-function-longlines-mode)
                 (function :tag "Custom function")
                 (const :tag "Do nothing" nil))
   :group 'so-long)
@@ -475,7 +478,17 @@ want to increase `so-long-max-lines' to allow for possible comments."
 
 This is a `so-long-function' option."
   (require 'longlines)
+  (so-long-remember 'longlines-mode)
   (longlines-mode 1))
+
+(defun so-long-revert-function-longlines-mode ()
+  "Restore original state of `longlines-mode'."
+  (require 'longlines)
+  (let ((state (so-long-original 'longlines-mode :exists)))
+    (if state
+        (unless (equal (cadr state) longlines-mode)
+          (longlines-mode (if (cadr state) 1 0)))
+      (longlines-mode 0))))
 
 (defun so-long-function-overrides-only ()
   "Disable minor modes and override variables, but retain the major mode.
@@ -612,7 +625,6 @@ Re-process local variables, and restore overridden variables and minor modes."
     (so-long-restore-variables)))
 
 (define-key so-long-mode-map (kbd "C-c C-c") 'so-long-revert)
-
 
 (defun so-long-check-header-modes ()
   "Handles the header-comments processing in `set-auto-mode'.
