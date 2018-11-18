@@ -563,6 +563,16 @@ Calls `so-long-disable-minor-modes' and `so-long-override-variables'."
     (when (and (boundp mode) mode)
       (funcall mode 0))))
 
+(defun so-long-restore-minor-modes ()
+  "Restore the minor modes which were disabled.
+
+The modes are enabled in accordance with what was remembered in `so-long'."
+  (dolist (mode so-long-minor-modes)
+    (when (and (so-long-original mode)
+               (boundp mode)
+               (not (symbol-value mode)))
+      (funcall mode 1))))
+
 (defun so-long-override-variables ()
   "Process `so-long-variable-overrides'."
   (dolist (ovar so-long-variable-overrides)
@@ -587,14 +597,16 @@ Calls `so-long-disable-minor-modes' and `so-long-override-variables'."
 (defun so-long-mode-revert ()
   "Call the `major-mode' which was selected before `so-long-mode' replaced it.
 
-Re-process local variables, and restore overridden variables."
+Re-process local variables, and restore overridden variables and minor modes."
   (interactive)
   (let ((so-long-original-mode (so-long-original 'major-mode)))
     (unless so-long-original-mode
       (error "Original mode unknown."))
     (funcall so-long-original-mode)
     (hack-local-variables)
-    ;; Restore overridden variables, and run hook.
+    ;; Restore minor modes.
+    (so-long-restore-minor-modes)
+    ;; Restore overridden variables.
     ;; `kill-all-local-variables' was already called by the original mode
     ;; function, so we may be seeing global values.
     (so-long-restore-variables)))
