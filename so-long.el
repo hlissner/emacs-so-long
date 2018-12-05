@@ -160,7 +160,8 @@
 
 ;;; Change Log:
 ;;
-;; 0.8   - New user option `so-long-variable-overrides'.
+;; 0.8   - New user option `so-long-action'.
+;;       - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-file-local-mode-function'.
 ;;       - New user option `so-long-function' supporting alternative actions.
@@ -169,7 +170,7 @@
 ;;       - New command `so-long-revert' to invoke `so-long-revert-function'.
 ;;       - Support retaining the original major mode while still disabling
 ;;         minor modes and overriding variables.
-;;       - Support `longlines-mode' as a `so-long-function' option.
+;;       - Support `longlines-mode' as a `so-long-action' option.
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
@@ -242,6 +243,43 @@ See `so-long-line-detected-p' for details."
 Our primary use-case is minified programming code, so `prog-mode' covers
 most cases, but there are some exceptions to this."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
+  :group 'so-long)
+
+(defcustom so-long-action '(so-long-mode . so-long-mode-revert)
+  "The actions taken by `so-long' when long lines are detected.
+
+Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.
+
+Each value is a cons of function pairs.  The first is the function called by
+`so-long' when long lines are detected.  The second is the function called
+by `so-long-revert', if that command is subsequently invoked.  This second
+function.
+
+The default value is `so-long-mode', which replaces the original major mode.
+Alternatively, `so-long-function-overrides-only' retains the original major mode
+while still disabling minor modes and overriding variables.  These are the only
+values for which `so-long-minor-modes' and `so-long-variable-overrides' will be
+automatically processed; but custom functions may do these things manually --
+refer to `so-long-after-change-major-mode'.
+
+Minor mode `longlines-mode' from longlines.el (see which) is also supported as a
+standard option (`so-long-function-longlines-mode').
+
+The specified function will be called with no arguments, after which
+`so-long-hook' runs."
+  :type '(choice (const :tag "Change major mode to so-long-mode"
+                        (so-long-mode
+                         . so-long-mode-revert))
+                 (const :tag "Disable minor modes and override variables"
+                        (so-long-function-overrides-only
+                         . so-long-revert-function-overrides-only))
+                 (const :tag "Enable longlines-mode"
+                        (so-long-function-longlines-mode
+                         . so-long-revert-function-longlines-mode))
+                 (cons :tag "Custom"
+                       (function :tag "so-long-function")
+                       (function :tag "so-long-revert-function"))
+                 (const :tag "Do nothing" nil))
   :group 'so-long)
 
 (defcustom so-long-function 'so-long-mode
@@ -534,7 +572,7 @@ This is a `so-long-function' option."
   (so-long-restore-variables))
 
 (define-derived-mode so-long-mode nil "So long"
-  "This major mode is the default `so-long-function' option.
+  "This major mode is the default `so-long-action' option.
 
 Many Emacs modes struggle with buffers which contain excessively long lines,
 and may consequently cause unacceptable performance issues.
