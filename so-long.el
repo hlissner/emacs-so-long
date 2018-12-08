@@ -165,8 +165,8 @@
 ;;       - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-file-local-mode-function'.
-;;       - New variable `so-long-function'.
-;;       - New variable `so-long-revert-function'.
+;;       - New variable and function `so-long-function'.
+;;       - New variable and function `so-long-revert-function'.
 ;;       - New command `so-long' to invoke `so-long-function' interactively.
 ;;       - New command `so-long-revert' to invoke `so-long-revert-function'.
 ;;       - Support retaining the original major mode while still disabling
@@ -336,6 +336,18 @@ happens automatically, based on the value of `so-long-action'.
 
 The specified function will be called with no arguments, after which
 `so-long-revert-hook' runs.")
+
+(defun so-long-function ()
+  "The value of `so-long-function', else derive from `so-long-action'."
+  (or so-long-function
+      (let ((action (assq so-long-action so-long-action-alist)))
+        (nth 2 action))))
+
+(defun so-long-revert-function ()
+  "The value of `so-long-revert-function', else derive from `so-long-action'."
+  (or so-long-revert-function
+      (let ((action (assq so-long-action so-long-action-alist)))
+        (nth 3 action))))
 
 (defcustom so-long-file-local-mode-function 'so-long-mode-downgrade
   "Function to call when long lines are detected and a file-local mode is set.
@@ -720,11 +732,11 @@ we set it buffer-locally to `so-long-revert-function-overrides-only'.
 
 If `so-long-function' has any value other than `so-long-mode', we do nothing, as
 if `so-long-file-local-mode-function' was nil."
-  (when (eq so-long-function 'so-long-mode)
+  (when (eq (so-long-function) 'so-long-mode)
     ;; Downgrade from `so-long-mode' to `so-long-function-overrides-only'.
     (setq so-long-function 'so-long-function-overrides-only))
   ;; Likewise, downgrade from `so-long-mode-revert'.
-  (when (eq so-long-revert-function 'so-long-mode-revert)
+  (when (eq (so-long-revert-function) 'so-long-mode-revert)
     (setq so-long-revert-function 'so-long-revert-function-overrides-only)))
 
 (defun so-long-inhibit ()
@@ -866,13 +878,12 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
 (defun so-long ()
   "Invoke `so-long-function' and run `so-long-hook'."
   (interactive)
+  (unless so-long-function
+    (setq so-long-function (so-long-function)))
+  (unless so-long-revert-function
+    (setq so-long-revert-function (so-long-revert-function)))
   ;; Remember original settings.
   (setq so-long-original-values nil)
-  (let ((action (assq so-long-action so-long-action-alist)))
-    (unless so-long-function
-      (setq so-long-function (nth 2 action)))
-    (unless so-long-revert-function
-      (setq so-long-revert-function (nth 3 action))))
   (so-long-remember 'so-long-function)
   (so-long-remember 'so-long-revert-function)
   (dolist (ovar so-long-variable-overrides)
@@ -881,7 +892,8 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
     (when (and (boundp mode) mode)
       (so-long-remember mode)))
   ;; Call the configured `so-long-function'.
-  (funcall so-long-function)
+  (when (functionp so-long-function)
+    (funcall so-long-function))
   ;; Ensure that `so-long-revert-function' (especially) is still known
   ;; (as a change to `so-long-mode' will have clobbered it).
   (so-long-restore-variable 'so-long-function)
@@ -896,7 +908,8 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
 (defun so-long-revert ()
   "Invoke `so-long-revert-function' and run `so-long-revert-hook'."
   (interactive)
-  (funcall so-long-revert-function)
+  (when (functionp so-long-revert-function)
+    (funcall so-long-revert-function))
   (let ((inhibit-read-only t))
     (run-hooks 'so-long-revert-hook)))
 
