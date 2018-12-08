@@ -161,6 +161,7 @@
 ;;; Change Log:
 ;;
 ;; 0.8   - New user option `so-long-action'.
+;;       - New user option `so-long-action-alist' defining alternative actions.
 ;;       - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-file-local-mode-function'.
@@ -245,41 +246,77 @@ most cases, but there are some exceptions to this."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
   :group 'so-long)
 
-(defcustom so-long-action '(so-long-mode . so-long-mode-revert)
-  "The actions taken by `so-long' when long lines are detected.
+;; Silence byte-compiler warning.  `so-long-action-alist' is defined below
+;; as a user option; but the definition sequence required for its setter
+;; function means we also need to declare it beforehand.
+(defvar so-long-action-alist)
 
-Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.
+(defun so-long-action-type ()
+  "Generate a :type for `so-long-action' based on `so-long-action-alist'."
+  ;; :type seemingly cannot be a form to be evaluated on demand, so we
+  ;; endeavour to keep it up-to-date with `so-long-action-alist' by
+  ;; calling this from `so-long-action-alist-setter'.
+  `(radio ,@(mapcar (lambda (x) (list 'const :tag (cadr x) (car x)))
+                    so-long-action-alist)
+          (const :tag "Do nothing" nil)))
 
-Each value is a cons of function pairs.  The first is the function called by
-`so-long' when long lines are detected.  The second is the function called
-by `so-long-revert', if that command is subsequently invoked.  This second
-function.
+(defun so-long-action-alist-setter (option value)
+  "The :set function for `so-long-action-alist'."
+  ;; Set the value as normal.
+  (set-default option value)
+  ;; Update the :type of `so-long-action' to present the updated values.
+  (put 'so-long-action 'custom-type (so-long-action-type)))
 
-The default value is `so-long-mode', which replaces the original major mode.
-Alternatively, `so-long-function-overrides-only' retains the original major mode
-while still disabling minor modes and overriding variables.  These are the only
+(defcustom so-long-action-alist
+  '((so-long-mode
+     "Change major mode to so-long-mode"
+     so-long-mode
+     so-long-mode-revert)
+    (overrides-only
+     "Disable minor modes and override variables"
+     so-long-function-overrides-only
+     so-long-revert-function-overrides-only)
+    (longlines-mode
+     "Enable longlines-mode"
+     so-long-function-longlines-mode
+     so-long-revert-function-longlines-mode))
+  "Options for `so-long-action'.
+
+Each element is a list comprising (KEY LABEL ACTION REVERT)
+
+KEY is a symbol which is a valid value for `so-long-action', and LABEL is a
+string which describes and represents the key in that option's customize
+interface.  ACTION and REVERT are functions:
+
+ACTION will be the `so-long-function' value when `so-long' is called, and
+REVERT will be the `so-long-revert-function' value, if `so-long-revert' is
+subsequently called."
+  :type '(alist :key-type (symbol :tag "Key")
+                :value-type (list (string :tag "Label")
+                                  (function :tag "Action")
+                                  (function :tag "Revert")))
+  :set #'so-long-action-alist-setter
+  :group 'so-long)
+(put 'so-long-action-alist 'risky-local-variable t)
+
+(defcustom so-long-action 'so-long-mode
+  "The action taken by `so-long' when long lines are detected.
+
+\(Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.)
+
+The value is a key to one of the options defined by `so-long-action-alist'.
+
+The default action is to replace the original major mode with `so-long-mode'.
+Alternatively, `overrides-only' retains the original major mode while still
+disabling minor modes and overriding variables.  These are the only standard
 values for which `so-long-minor-modes' and `so-long-variable-overrides' will be
-automatically processed; but custom functions may do these things manually --
-refer to `so-long-after-change-major-mode'.
+automatically processed; but custom actions can also do these things.
 
-Minor mode `longlines-mode' from longlines.el (see which) is also supported as a
-standard option (`so-long-function-longlines-mode').
+The value `longlines-mode' causes that minor mode to be enabled.  See
+longlines.el for more details.
 
-The specified function will be called with no arguments, after which
-`so-long-hook' runs."
-  :type '(choice (const :tag "Change major mode to so-long-mode"
-                        (so-long-mode
-                         . so-long-mode-revert))
-                 (const :tag "Disable minor modes and override variables"
-                        (so-long-function-overrides-only
-                         . so-long-revert-function-overrides-only))
-                 (const :tag "Enable longlines-mode"
-                        (so-long-function-longlines-mode
-                         . so-long-revert-function-longlines-mode))
-                 (cons :tag "Custom"
-                       (function :tag "so-long-function")
-                       (function :tag "so-long-revert-function"))
-                 (const :tag "Do nothing" nil))
+Each action likewise determines the behaviour of `so-long-revert'."
+  :type (so-long-action-type)
   :group 'so-long)
 
 (defcustom so-long-function 'so-long-mode
