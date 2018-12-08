@@ -165,8 +165,8 @@
 ;;       - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-file-local-mode-function'.
-;;       - New user option `so-long-function' supporting alternative actions.
-;;       - New user option `so-long-revert-function'.
+;;       - New variable `so-long-function'.
+;;       - New variable `so-long-revert-function'.
 ;;       - New command `so-long' to invoke `so-long-function' interactively.
 ;;       - New command `so-long-revert' to invoke `so-long-revert-function'.
 ;;       - Support retaining the original major mode while still disabling
@@ -319,56 +319,23 @@ Each action likewise determines the behaviour of `so-long-revert'."
   :type (so-long-action-type)
   :group 'so-long)
 
-(defcustom so-long-function 'so-long-mode
-  "The function called by `so-long' when long lines are detected.
+(defvar-local so-long-function nil
+  "The function called by `so-long'.
 
-This should be set in conjunction with `so-long-revert-function'.
-
-Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.
-
-The default value is `so-long-mode', which replaces the original major mode.
-Alternatively, `so-long-function-overrides-only' retains the original major mode
-while still disabling minor modes and overriding variables.  These are the only
-values for which `so-long-minor-modes' and `so-long-variable-overrides' will be
-automatically processed; but custom functions may do these things manually --
-refer to `so-long-after-change-major-mode'.
-
-Minor mode `longlines-mode' from longlines.el (see which) is also supported as a
-standard option (`so-long-function-longlines-mode').
+This should be set in conjunction with `so-long-revert-function'.  This usually
+happens automatically, based on the value of `so-long-action'.
 
 The specified function will be called with no arguments, after which
-`so-long-hook' runs."
-  :type '(radio (const :tag "Change major mode to so-long-mode"
-                       so-long-mode)
-                (const :tag "Disable minor modes and override variables"
-                       so-long-function-overrides-only)
-                (const :tag "Enable longlines-mode"
-                       so-long-function-longlines-mode)
-                (function :tag "Custom function")
-                (const :tag "Do nothing" nil))
-  :group 'so-long)
-(make-variable-buffer-local 'so-long-function)
+`so-long-hook' runs.")
 
-(defcustom so-long-revert-function 'so-long-mode-revert
-  "The function to call when `so-long-revert' is invoked.
+(defvar-local so-long-revert-function nil
+  "The function called by `so-long-revert'.
 
-This should be set in conjunction with `so-long-function'.
-
-The default value is `so-long-mode-revert', which reverts the behaviour
-of `so-long-mode', the default `so-long-function' value.
+This should be set in conjunction with `so-long-function'.  This usually
+happens automatically, based on the value of `so-long-action'.
 
 The specified function will be called with no arguments, after which
-`so-long-revert-hook' runs."
-  :type '(radio (const :tag "Revert so-long-mode"
-                       so-long-mode-revert)
-                (const :tag "Revert minor modes and overridden variables"
-                       so-long-revert-function-overrides-only)
-                (const :tag "Revert longlines-mode"
-                       so-long-revert-function-longlines-mode)
-                (function :tag "Custom function")
-                (const :tag "Do nothing" nil))
-  :group 'so-long)
-(make-variable-buffer-local 'so-long-revert-function)
+`so-long-revert-hook' runs.")
 
 (defcustom so-long-file-local-mode-function 'so-long-mode-downgrade
   "Function to call when long lines are detected and a file-local mode is set.
@@ -887,11 +854,10 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (when so-long-enabled
     (unless so-long--inhibited
       (when (and (apply 'derived-mode-p so-long-target-modes)
-                 (so-long-line-detected-p)
-                 ;; Set the buffer-local values from the temp vars.
-                 (setq so-long-revert-function so-long--revert-function
-                       so-long-function so-long--function)
-                 (functionp so-long-function))
+                 (so-long-line-detected-p))
+        ;; Set the buffer-local values from the temp vars.
+        (setq so-long-revert-function so-long--revert-function
+              so-long-function so-long--function)
         (so-long)))))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
@@ -902,6 +868,11 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (interactive)
   ;; Remember original settings.
   (setq so-long-original-values nil)
+  (let ((action (assq so-long-action so-long-action-alist)))
+    (unless so-long-function
+      (setq so-long-function (nth 2 action)))
+    (unless so-long-revert-function
+      (setq so-long-revert-function (nth 3 action))))
   (so-long-remember 'so-long-function)
   (so-long-remember 'so-long-revert-function)
   (dolist (ovar so-long-variable-overrides)
