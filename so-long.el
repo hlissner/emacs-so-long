@@ -386,7 +386,8 @@ The specified function will be called with no arguments, after which
 (defcustom so-long-file-local-mode-function 'so-long-mode-downgrade
   "Function to call when long lines are detected and a file-local mode is set.
 
-The specified function will be called with no arguments.
+The specified function will be called with a single argument, being the
+file-local mode which was established.
 
 The value `so-long-mode-downgrade' means that `so-long-function-overrides-only'
 will be used in place of `so-long-mode' -- retaining the file-local mode, but
@@ -406,6 +407,20 @@ local modes any differently to other files."
   :package-version '(so-long . "1.0")
   :group 'so-long)
 (make-variable-buffer-local 'so-long-file-local-mode-function)
+
+(defun so-long-handle-file-local-mode (mode)
+  "Wrapper for calling `so-long-file-local-mode-function'.
+
+The function is called with one argument, MODE, being the file-local mode which
+was established."
+  ;; Handle the edge case whereby the file-local mode was `so-long-mode'.
+  ;; In this instance we set `so-long--inhibited', because the file-local mode
+  ;; is already going to do everything that is wanted.
+  (if (eq mode 'so-long-mode)
+      (setq so-long--inhibited t)
+    ;; Call `so-long-file-local-mode-function'.
+    (when (functionp so-long-file-local-mode-function)
+      (funcall so-long-file-local-mode-function mode))))
 
 (defcustom so-long-minor-modes
   ;; In sorted groups.
@@ -664,14 +679,15 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
   ;; influences how a global minor mode behaves in this buffer.
   (so-long-override-variables)
   ;; Inform the user about our major mode hijacking.
-  (message (concat "Changed to %s (from %s)"
-                   (unless (or (eq this-command 'so-long-mode)
-                               (eq this-command 'so-long))
-                     " on account of line length")
-                   ".  %s to revert.")
-           major-mode
-           (or (so-long-original 'major-mode) "<unknown>")
-           (substitute-command-keys "\\[so-long-revert]")))
+  (unless so-long--inhibited
+    (message (concat "Changed to %s (from %s)"
+                     (unless (or (eq this-command 'so-long-mode)
+                                 (eq this-command 'so-long))
+                       " on account of line length")
+                     ".  %s to revert.")
+             major-mode
+             (or (so-long-original 'major-mode) "<unknown>")
+             (substitute-command-keys "\\[so-long-revert]"))))
 
 (defcustom so-long-mode-hook nil
   "List of functions to call when `so-long-mode' is invoked.
@@ -760,7 +776,7 @@ Re-process local variables, and restore overridden variables and minor modes."
 
 (define-key so-long-mode-map (kbd "C-c C-c") 'so-long-revert)
 
-(defun so-long-mode-downgrade ()
+(defun so-long-mode-downgrade (&optional mode)
   "The default value for `so-long-file-local-mode-function'.
 
 When `so-long-function' is set to `so-long-mode', then we set it buffer-locally
@@ -779,7 +795,7 @@ if `so-long-file-local-mode-function' was nil."
   (when (eq (so-long-revert-function) 'so-long-mode-revert)
     (setq so-long-revert-function 'so-long-revert-function-overrides-only)))
 
-(defun so-long-inhibit ()
+(defun so-long-inhibit (&optional mode)
   "Prevent so-long from having any effect at all.
 
 This is a `so-long-file-local-mode-function' option."
@@ -839,9 +855,11 @@ function defined by `so-long-file-local-mode-function'."
     ;; `so-long' now processes the resulting mode list.  If any modes were
     ;; listed, we assume that one of them is a major mode.  It's possible that
     ;; this isn't true, but the buffer would remain in fundamental-mode if that
-    ;; were the case, so it is very unlikely.
-    (when (and modes (functionp so-long-file-local-mode-function))
-      (funcall so-long-file-local-mode-function))))
+    ;; were the case, so it is very unlikely.  For the purposes of passing a
+    ;; value to `so-long-handle-file-local-mode' we assume the major mode was
+    ;; the first mode specified (in which case it is the last in the list).
+    (when modes
+      (so-long-handle-file-local-mode (car (last modes))))))
 
 ;; How do you solve a problem like a long line?
 ;; How do you stop a mode from slowing down?
@@ -863,9 +881,8 @@ If a file-local mode is detected, then we call the function defined by
   ;; and MODE-ONLY in earlier versions.  In either case we are interested in
   ;; whether it has the value `t'.
   (and (eq (ad-get-arg 0) t)
-       (when (and ad-return-value ; A file-local mode was set.
-                  (functionp so-long-file-local-mode-function))
-         (funcall so-long-file-local-mode-function))))
+       ad-return-value ; A file-local mode was set.
+       (so-long-handle-file-local-mode ad-return-value)))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
 
