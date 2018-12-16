@@ -8,20 +8,22 @@
 ;; Keywords: convenience
 ;; Created: 23 Dec 2015
 ;; Package-Requires: ((emacs "24.3"))
-;; Version: 0.8
+;; Version: 1.0
 
-;; This program is free software; you can redistribute it and/or modify
+;; This file is part of GNU Emacs.
+
+;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
 
-;; This program is distributed in the hope that it will be useful,
+;; GNU Emacs is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -180,7 +182,8 @@
 
 ;;; Change Log:
 ;;
-;; 0.8   - New user option `so-long-action'.
+;; 1.0   - Included in Emacs 27.1, and in GNU ELPA for prior versions of Emacs.
+;;       - New user option `so-long-action'.
 ;;       - New user option `so-long-action-alist' defining alternative actions.
 ;;       - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
@@ -221,6 +224,9 @@
 
 ;;; Code:
 
+(add-to-list 'customize-package-emacs-version-alist
+             '(so-long ("1.0" . "27.1")))
+
 (declare-function longlines-mode "longlines")
 (defvar longlines-mode)
 
@@ -234,6 +240,7 @@
 
 See `so-long-line-detected-p' for details."
   :type 'integer
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defcustom so-long-max-lines 5
@@ -248,6 +255,7 @@ be counted.
 See `so-long-line-detected-p' for details."
   :type '(choice (integer :tag "Limit")
                  (const :tag "Unlimited" nil))
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defcustom so-long-skip-leading-comments t
@@ -255,6 +263,7 @@ See `so-long-line-detected-p' for details."
 
 See `so-long-line-detected-p' for details."
   :type 'boolean
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defcustom so-long-target-modes
@@ -264,6 +273,7 @@ See `so-long-line-detected-p' for details."
 Our primary use-case is minified programming code, so `prog-mode' covers
 most cases, but there are some exceptions to this."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 ;; Silence byte-compiler warning.  `so-long-action-alist' is defined below
@@ -316,6 +326,7 @@ subsequently called."
                                   (function :tag "Action")
                                   (function :tag "Revert")))
   :set #'so-long-action-alist-setter
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 (put 'so-long-action-alist 'risky-local-variable t)
 
@@ -337,6 +348,7 @@ longlines.el for more details.
 
 Each action likewise determines the behaviour of `so-long-revert'."
   :type (so-long-action-type)
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defvar-local so-long-function nil
@@ -391,6 +403,7 @@ local modes any differently to other files."
                 (const so-long-inhibit)
                 (const :tag "nil: Use so-long-function as normal" nil)
                 (function :tag "Custom function"))
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 (make-variable-buffer-local 'so-long-file-local-mode-function)
 
@@ -436,6 +449,7 @@ See also `so-long-mode-hook'.
 Please submit bug reports to recommend additional modes for this list, whether
 they are in Emacs core, GNU ELPA, or elsewhere."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defcustom so-long-variable-overrides
@@ -452,6 +466,7 @@ they are in Emacs core, GNU ELPA, or elsewhere."
              (global-hl-line-mode boolean)
              (line-move-visual boolean)
              (truncate-lines boolean))
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defcustom so-long-hook nil
@@ -459,11 +474,13 @@ they are in Emacs core, GNU ELPA, or elsewhere."
 
 This hook runs after `so-long-function' has been called in `so-long'."
   :type 'hook
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defcustom so-long-revert-hook nil
   "List of functions to call after `so-long-revert' is called."
   :type 'hook
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defvar so-long-enabled t
@@ -663,6 +680,7 @@ Note that globalized minor modes have not yet acted.
 
 See also `so-long-hook'."
   :type 'hook
+  :package-version '(so-long . "1.0")
   :group 'so-long)
 
 (defun so-long-after-change-major-mode ()
