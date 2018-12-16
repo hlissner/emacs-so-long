@@ -653,6 +653,9 @@ This is a `so-long-function' option."
   (so-long-restore-minor-modes)
   (so-long-restore-variables))
 
+(defvar so-long--set-auto-mode nil ; internal use
+  "Non-nil when `set-auto-mode' is executing.")
+
 (define-derived-mode so-long-mode nil "So long"
   "This major mode is the default `so-long-action' option.
 
@@ -691,7 +694,7 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
   ;; influences how a global minor mode behaves in this buffer.
   (so-long-override-variables)
   ;; Inform the user about our major mode hijacking.
-  (unless so-long--inhibited
+  (unless (or so-long--inhibited so-long--set-auto-mode)
     (message (concat "Changed to %s (from %s)"
                      (unless (or (eq this-command 'so-long-mode)
                                  (eq this-command 'so-long))
@@ -898,7 +901,8 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (setq so-long--inhibited nil) ; is permanent-local
   (when so-long-enabled
     (so-long-check-header-modes)) ; may set `so-long--inhibited'
-  ad-do-it ; `set-auto-mode'      ; may set `so-long--inhibited'
+  (let ((so-long--set-auto-mode t))
+    ad-do-it) ; `set-auto-mode'   ; may set `so-long--inhibited'
   ;; Test the new major mode for long lines.
   (when so-long-enabled
     (unless so-long--inhibited
