@@ -327,6 +327,7 @@ happens automatically, based on the value of `so-long-action'.
 
 The specified function will be called with no arguments, after which
 `so-long-hook' runs.")
+(put 'so-long-function 'permanent-local t)
 
 (defvar-local so-long-revert-function nil
   "The function called by `so-long-revert'.
@@ -336,6 +337,7 @@ happens automatically, based on the value of `so-long-action'.
 
 The specified function will be called with no arguments, after which
 `so-long-revert-hook' runs.")
+(put 'so-long-revert-function 'permanent-local t)
 
 (defun so-long-function ()
   "The value of `so-long-function', else derive from `so-long-action'."
@@ -446,9 +448,6 @@ This hook runs after `so-long-function' has been called in `so-long'."
 
 (defvar so-long-enabled t
   "Set to nil to prevent `so-long-function' from being triggered.")
-
-(defvar so-long--function nil) ;; internal use
-(defvar so-long--revert-function nil) ;; internal use
 
 (defvar-local so-long--inhibited nil) ; internal use
 (put 'so-long--inhibited 'permanent-local t)
@@ -839,37 +838,15 @@ We can't act before this point, because some major modes must be exempt
 major mode is a member (or derivative of a member) of `so-long-target-modes'.
 
 `so-long-line-detected-p' then determines whether the mode change is needed."
-  ;; Firstly, let-bind `so-long-function' and `so-long-revert-function', as
-  ;; these may be changed by `so-long-file-local-mode-function' but will then
-  ;; be clobbered as soon as the body of `set-auto-mode' calls the major mode.
-  ;; This way the modified versions will persist through the major mode change.
-  ;;
-  ;; FIXME: I've now made these vars automatically buffer-local, so at this
-  ;; point they should probably be permanent-local as well, which surely
-  ;; resolves the issue being worked around here in a much simpler manner?
-  ;; Is there ultimately any difference in the outcome of the two approaches?
-  (let ((so-long-function so-long-function)
-        (so-long-revert-function so-long-revert-function))
-    (setq so-long--inhibited nil) ; is permanent-local
-    (when so-long-enabled
-      (so-long-check-header-modes)) ; may set `so-long--inhibited'
-    ad-do-it ; `set-auto-mode'      ; may set `so-long--inhibited'
-    ;; At this point we have changed major mode, and can store the
-    ;; let-bound values buffer-locally.  However Emacs complains when
-    ;; a variable is set buffer-locally whilst let-bound, so we store
-    ;; the values in temporary variables until the scope of the
-    ;; let-binding has ended (which is immediately after this).
-    (setq so-long--function so-long-function)
-    (setq so-long--revert-function so-long-revert-function))
-
+  (setq so-long--inhibited nil) ; is permanent-local
+  (when so-long-enabled
+    (so-long-check-header-modes)) ; may set `so-long--inhibited'
+  ad-do-it ; `set-auto-mode'      ; may set `so-long--inhibited'
   ;; Test the new major mode for long lines.
   (when so-long-enabled
     (unless so-long--inhibited
       (when (and (apply 'derived-mode-p so-long-target-modes)
                  (so-long-line-detected-p))
-        ;; Set the buffer-local values from the temp vars.
-        (setq so-long-revert-function so-long--revert-function
-              so-long-function so-long--function)
         (so-long)))))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
@@ -884,8 +861,6 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
     (setq so-long-revert-function (so-long-revert-function)))
   ;; Remember original settings.
   (setq so-long-original-values nil)
-  (so-long-remember 'so-long-function)
-  (so-long-remember 'so-long-revert-function)
   (dolist (ovar so-long-variable-overrides)
     (so-long-remember (car ovar)))
   (dolist (mode so-long-minor-modes)
@@ -894,10 +869,6 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   ;; Call the configured `so-long-function'.
   (when (functionp so-long-function)
     (funcall so-long-function))
-  ;; Ensure that `so-long-revert-function' (especially) is still known
-  ;; (as a change to `so-long-mode' will have clobbered it).
-  (so-long-restore-variable 'so-long-function)
-  (so-long-restore-variable 'so-long-revert-function)
   ;; Run `so-long-hook'.
   ;; By default we set `buffer-read-only', which can cause problems if hook
   ;; functions need to modify the buffer.  We use `inhibit-read-only' to
