@@ -511,6 +511,8 @@ nil if no value was set, and a cons cell otherwise."
 (defun so-long-remember (variable)
   "Push the `symbol-value' for VARIABLE to `so-long-original-values'."
   (when (boundp variable)
+    (setq so-long-original-values
+          (assq-delete-all variable so-long-original-values))
     (let ((locals (buffer-local-variables)))
       (push (list variable
                   (symbol-value variable)
@@ -522,7 +524,8 @@ nil if no value was set, and a cons cell otherwise."
 even when invoked interactively.
 
 Called by default during `change-major-mode-hook'."
-  (unless (eq major-mode 'so-long-mode)
+  (unless (or (minibufferp)
+              (eq major-mode 'so-long-mode))
     (so-long-remember 'major-mode)))
 
 ;; When the line's long
