@@ -26,8 +26,8 @@
 ;;; Commentary:
 ;;
 ;; When the lines in a buffer are so long that performance could suffer to an
-;; unacceptable degree, we say "so long" to the buffer's major mode, and invoke
-;; something much more basic in its place.
+;; unacceptable degree, we say "so long" to the slow modes and options enabled
+;; in that buffer, and invoke something much more basic in their place.
 ;;
 ;; Many Emacs modes struggle with buffers which contain excessively long lines.
 ;; This is commonly on account of 'minified' code (i.e. code that has been
@@ -36,21 +36,23 @@
 ;; simply aren't optimised (remotely) for this scenario, and so performance can
 ;; suffer significantly.
 ;;
-;; When such files are detected, we invoke `so-long-mode' in place of the mode
-;; that Emacs selected.  This is almost identical to `fundamental-mode', and
-;; so provides optimal major mode performance in the buffer.  In addition, we
-;; explicitly disable certain minor modes and set buffer-local values for
-;; certain variables (all configurable), where there are performance
-;; implications.
+;; When such files are detected, we automatically override certain minor modes
+;; and variables with performance implications (all configurable), in order to
+;; enhance performance in the buffer.
 ;;
-;; These kinds of minified files are typically not intended to be edited; so
-;; not providing the usual editing mode in such cases will rarely be an issue.
-;; However, should the user wish to do so, the original mode may be reinstated
-;; easily in any given buffer using `so-long-mode-revert' (the key binding for
-;; which is advertised when the mode is entered).
+;; By default we also invoke `so-long-mode' in place of the major mode that
+;; Emacs selected.  This is almost identical to `fundamental-mode', and so
+;; provides optimal major mode performance.  These kinds of minified files are
+;; typically not intended to be edited, so not providing the usual editing mode
+;; in such cases will rarely be an issue.  However, should the user wish to do
+;; so, the original mode may be reinstated easily in any given buffer using
+;; `so-long-revert' (the key binding for which is advertised when the major
+;; mode change occurs).
 ;;
-;; Alternatively, the user option `so-long-function' allows functions other
-;; than `so-long-mode' to be invoked in response to long lines.
+;; The user options `so-long-action' and `so-long-action-alist' determine what
+;; will happen when `so-long' and `so-long-revert' are invoked, allowing
+;; alternative actions (including custom actions) to be configured.  By default
+;; `longlines-mode' is supported as an alternative action.
 ;;
 ;; Note that while the measures taken by this library can improve performance
 ;; dramatically when dealing with such files, this library does not have any
@@ -74,9 +76,23 @@
 ;; Variables `so-long-target-modes', `so-long-threshold', `so-long-max-lines',
 ;; and `so-long-enabled' determine whether action will be taken in a given
 ;; buffer.  The tests are made after `set-auto-mode' has set the normal major
-;; mode.  The `so-long-function' variable determines what will be done.
+;; mode.  The `so-long-action' variable determines what will be done.
 ;;
 ;; You can also use M-x so-long to invoke the behaviour manually.
+
+;; Actions
+;; -------
+;; The user options `so-long-action' and `so-long-action-alist' determine what
+;; will happen when `so-long' and `so-long-revert' are invoked, and you can add
+;; your own custom actions if you wish.
+;;
+;; It is also possible to set the buffer-local `so-long-function' and
+;; `so-long-revert-function' values directly -- any existing value for these
+;; variables will be used in preference to the values defined by the selected
+;; action.  For directory-local or file-local usage it is preferable to set
+;; only `so-long-action', as all function variables are marked as 'risky',
+;; meaning you would need to add to `safe-local-variable-values' in order to
+;; avoid being queried about them.
 
 ;; Inhibiting and disabling minor modes
 ;; ------------------------------------
@@ -109,7 +125,8 @@
 ;; Hooks
 ;; -----
 ;; `so-long-mode-hook' is the standard major mode hook, which runs between
-;; `change-major-mode-after-body-hook' and `after-change-major-mode-hook'.
+;; `change-major-mode-after-body-hook' and `after-change-major-mode-hook'
+;; if `so-long-mode' is invoked.
 ;;
 ;; `so-long-hook' runs after `so-long-function' has finished.  Note that for
 ;; the default value `so-long-mode', this means globalized minor modes have
@@ -121,7 +138,7 @@
 
 ;; Troubleshooting
 ;; ---------------
-;; Any elisp library has the potential to cause performance problems, so
+;; Any elisp library has the potential to cause performance problems; so
 ;; while the default configuration addresses some important common cases,
 ;; it's entirely possible that your own config introduces problem cases
 ;; which are unknown to this library.
@@ -136,6 +153,9 @@
 ;; turns out to be a buffer-local minor mode, or a user option, you can
 ;; likely alleviate the issue by customizing `so-long-minor-modes' or
 ;; `so-long-variable-overrides' accordingly.
+;;
+;; In some cases it may be useful to set a file-local `mode' variable to
+;; `so-long-mode', completely bypassing the automated decision process.
 
 ;; Example configuration
 ;; ---------------------
