@@ -701,19 +701,6 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
              (or (so-long-original 'major-mode) "<unknown>")
              (substitute-command-keys "\\[so-long-revert]"))))
 
-(defcustom so-long-mode-hook nil
-  "List of functions to call when `so-long-mode' is invoked.
-
-This is the standard mode hook for `so-long-mode' which runs between
-`change-major-mode-after-body-hook' and `after-change-major-mode-hook'.
-
-Note that globalized minor modes have not yet acted.
-
-See also `so-long-hook'."
-  :type 'hook
-  :package-version '(so-long . "1.0")
-  :group 'so-long)
-
 (defun so-long-after-change-major-mode ()
   "Run by `so-long-mode' in `after-change-major-mode-hook'.
 
