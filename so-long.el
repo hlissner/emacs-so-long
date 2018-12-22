@@ -179,6 +179,18 @@
 ;; This library advises `hack-local-variables' (in order that we may inhibit our
 ;; functionality when a file-local mode is set), and `set-auto-mode' (in order
 ;; to react after Emacs has chosen the major mode for a buffer).
+;;
+;; Many variables are permanent-local because after the normal major mode has
+;; been set, we potentially change the major mode to `so-long-mode', and it's
+;; important that the values which were established prior to that are retained.
+
+;; Caveats
+;; -------
+;; Certain variables (e.g. `so-long-action') can be used as file- or dir-local
+;; values in Emacs 26+, but not in previous versions of Emacs.  This is on
+;; account of improvements made to `normal-mode' in 26.1, which altered the
+;; execution order with respect to when local variables are processed.  It is
+;; unlikely that such support will be implemented for older versions.
 
 ;;; Change Log:
 ;;
@@ -391,15 +403,17 @@ file-local mode which was established.
 
 The value `so-long-mode-downgrade' means that `so-long-function-overrides-only'
 will be used in place of `so-long-mode' -- retaining the file-local mode, but
-performing all other default so-long actions.  (Likewise, the revert function
-will be changed to `so-long-revert-function-overrides-only' if it had been
-initially set to `so-long-mode-revert'.)
+still overriding minor modes and variables, as if `so-long-action' had been set
+to `overrides-only'.
 
 The value `so-long-inhibit' means that so-long will not take any action at all
 for this file.
 
-If nil, then use `so-long-function' as normal -- do not treat files with file-
-local modes any differently to other files."
+If nil, then do not treat files with file-local modes any differently to other
+files.
+
+Note that in the special case when the file-local mode is `so-long-mode', the
+`so-long-file-local-mode-function' value will not be called."
   :type '(radio (const so-long-mode-downgrade)
                 (const so-long-inhibit)
                 (const :tag "nil: Use so-long-function as normal" nil)
@@ -413,7 +427,7 @@ local modes any differently to other files."
 
 The function is called with one argument, MODE, being the file-local mode which
 was established."
-  ;; Handle the edge case whereby the file-local mode was `so-long-mode'.
+  ;; Handle the special case whereby the file-local mode was `so-long-mode'.
   ;; In this instance we set `so-long--inhibited', because the file-local mode
   ;; is already going to do everything that is wanted.
   (if (eq mode 'so-long-mode)
@@ -449,17 +463,17 @@ was established."
   ;; buffers of minified code, but we should be aiming to maximise performance
   ;; by default, so that Emacs is as responsive as we can manage in even very
   ;; large buffers of minified code.
-  "List of buffer-local minor modes to explicitly disable in `so-long-mode'.
+  "List of buffer-local minor modes to explicitly disable.
 
 The modes are disabled by calling them with a single numeric argument of zero.
 
-This happens during `after-change-major-mode-hook', and after any globalized
-minor modes have acted, so that buffer-local modes controlled by globalized
-modes can also be targeted.
+This happens after any globalized minor modes have acted, so that buffer-local
+modes controlled by globalized modes can also be targeted.
+
+By default this happens when `so-long-action' is set to either `so-long-mode'
+or `overrides-only'.
 
 `so-long-hook' can be used where more custom behaviour is desired.
-
-See also `so-long-mode-hook'.
 
 Please submit bug reports to recommend additional modes for this list, whether
 they are in Emacs core, GNU ELPA, or elsewhere."
@@ -485,9 +499,7 @@ they are in Emacs core, GNU ELPA, or elsewhere."
   :group 'so-long)
 
 (defcustom so-long-hook nil
-  "List of functions to call after `so-long' is called.
-
-This hook runs after `so-long-function' has been called in `so-long'."
+  "List of functions to call after `so-long' is called."
   :type 'hook
   :package-version '(so-long . "1.0")
   :group 'so-long)
