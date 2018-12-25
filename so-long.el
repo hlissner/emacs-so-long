@@ -253,6 +253,19 @@
 (declare-function longlines-mode "longlines")
 (defvar longlines-mode)
 
+(defvar so-long-enabled t
+  "Set to nil to prevent `so-long' from being triggered automatically.")
+
+(defvar-local so-long--active nil ; internal use
+  "Non-nil when `so-long' mitigations are in effect.")
+
+(defvar so-long--set-auto-mode nil ; internal use
+  "Non-nil while `set-auto-mode' is executing.")
+
+(defvar-local so-long--inhibited nil ; internal use
+  "When non-nil, prevents the `set-auto-mode' advice from calling `so-long'.")
+(put 'so-long--inhibited 'permanent-local t)
+
 (defgroup so-long nil
   "Prevent unacceptable performance degradation with very long lines."
   :prefix "so-long"
@@ -535,15 +548,6 @@ If nil, no mode line indicator will be displayed."
 ;; All of my CPU tied up with strings
 ;; These are a few of my least-favourite things
 
-(defvar so-long-enabled t
-  "Set to nil to prevent `so-long-function' from being triggered.")
-
-(defvar-local so-long--active nil
-  "Non-nil when `so-long' mitigations are in effect.")
-
-(defvar-local so-long--inhibited nil) ; internal use
-(put 'so-long--inhibited 'permanent-local t)
-
 (defvar-local so-long-original-values nil
   "Alist holding the buffer's original `major-mode' value, and other data.
 
@@ -782,9 +786,6 @@ This is a `so-long-function' option."
 ;; How do you stop a mode from slowing down?
 ;; How do you cope with processing a long line?
 ;; A bit of advice! A mode! A workaround!
-
-(defvar so-long--set-auto-mode nil ; internal use
-  "Non-nil when `set-auto-mode' is executing.")
 
 (defvar so-long-mode-map
   (let ((map (make-sparse-keymap)))
