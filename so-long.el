@@ -267,6 +267,13 @@
   "When non-nil, prevents the `set-auto-mode' advice from calling `so-long'.")
 (put 'so-long--inhibited 'permanent-local t)
 
+(defvar so-long--calling nil ; internal use
+  ;; This prevents infinite recursion if eval:(so-long) is specified
+  ;; as a file- or dir-local variable, and `so-long-action' is set to
+  ;; `so-long-mode' (as that major mode would once again process the
+  ;; local variables, and hence call itself).
+  "Non-nil while `so-long' or `so-long-revert' is executing.")
+
 (defgroup so-long nil
   "Prevent unacceptable performance degradation with very long lines."
   :prefix "so-long"
@@ -1082,41 +1089,45 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
 (defun so-long ()
   "Invoke `so-long-function' and run `so-long-hook'."
   (interactive)
-  (setq so-long-line-detected-p t) ;; ensure menu is present.
-  (unless so-long-function
-    (setq so-long-function (so-long-function)))
-  (unless so-long-revert-function
-    (setq so-long-revert-function (so-long-revert-function)))
-  ;; Remember original settings.
-  (setq so-long-original-values nil)
-  (dolist (ovar so-long-variable-overrides)
-    (so-long-remember (car ovar)))
-  (dolist (mode so-long-minor-modes)
-    (when (and (boundp mode) mode)
-      (so-long-remember mode)))
-  ;; Call the configured `so-long-function'.
-  (when (functionp so-long-function)
-    (funcall so-long-function)
-    (setq so-long--active t))
-  ;; Display mode line info, unless we are in `so-long-mode' (which provides
-  ;; equivalent information in the mode line construct for the major mode).
-  (unless (derived-mode-p 'so-long-mode)
-    (setq so-long-mode-line-info (so-long-mode-line-info)))
-  ;; Run `so-long-hook'.
-  ;; By default we set `buffer-read-only', which can cause problems if hook
-  ;; functions need to modify the buffer.  We use `inhibit-read-only' to
-  ;; side-step the issue (and likewise in `so-long-revert').
-  (let ((inhibit-read-only t))
-    (run-hooks 'so-long-hook)))
+  (unless so-long--calling
+    (let ((so-long--calling t))
+      (setq so-long-line-detected-p t) ;; ensure menu is present.
+      (unless so-long-function
+        (setq so-long-function (so-long-function)))
+      (unless so-long-revert-function
+        (setq so-long-revert-function (so-long-revert-function)))
+      ;; Remember original settings.
+      (setq so-long-original-values nil)
+      (dolist (ovar so-long-variable-overrides)
+        (so-long-remember (car ovar)))
+      (dolist (mode so-long-minor-modes)
+        (when (and (boundp mode) mode)
+          (so-long-remember mode)))
+      ;; Call the configured `so-long-function'.
+      (when (functionp so-long-function)
+        (funcall so-long-function)
+        (setq so-long--active t))
+      ;; Display mode line info, unless we are in `so-long-mode' (which provides
+      ;; equivalent information in the mode line construct for the major mode).
+      (unless (derived-mode-p 'so-long-mode)
+        (setq so-long-mode-line-info (so-long-mode-line-info)))
+      ;; Run `so-long-hook'.
+      ;; By default we set `buffer-read-only', which can cause problems if hook
+      ;; functions need to modify the buffer.  We use `inhibit-read-only' to
+      ;; side-step the issue (and likewise in `so-long-revert').
+      (let ((inhibit-read-only t))
+        (run-hooks 'so-long-hook)))))
 
 (defun so-long-revert ()
   "Invoke `so-long-revert-function' and run `so-long-revert-hook'."
   (interactive)
-  (when (functionp so-long-revert-function)
-    (funcall so-long-revert-function)
-    (setq so-long--active nil))
-  (let ((inhibit-read-only t))
-    (run-hooks 'so-long-revert-hook)))
+  (unless so-long--calling
+    (let ((so-long--calling t))
+      (when (functionp so-long-revert-function)
+        (funcall so-long-revert-function)
+        (setq so-long--active nil))
+      (let ((inhibit-read-only t))
+        (run-hooks 'so-long-revert-hook)))))
 
 ;;;###autoload
 (defun so-long-enable ()
