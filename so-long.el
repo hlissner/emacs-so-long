@@ -217,7 +217,8 @@
 ;;         minor modes and overriding variables.
 ;;       - Support `longlines-mode' as a `so-long-action' option.
 ;;       - Added "So Long" menu, including all selectable actions.
-;;       - Added mode-line indicator and `so-long-mode-line-label' option.
+;;       - Added mode-line indicator, user option `so-long-mode-line-label',
+;;         and faces `so-long-mode-line-active', `so-long-mode-line-inactive'.
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
@@ -543,6 +544,18 @@ If nil, no mode line indicator will be displayed."
   :package-version '(so-long . "1.0")
   :group 'so-long)
 
+(defface so-long-mode-line-active
+  '((t :inherit mode-line-emphasis))
+  "Face for `so-long-mode-line-info' when mitigations are active."
+  :package-version '(so-long . "1.0")
+  :group 'so-long)
+
+(defface so-long-mode-line-inactive
+  '((t :inherit mode-line-inactive))
+  "Face for `so-long-mode-line-info' when mitigations have been reverted."
+  :package-version '(so-long . "1.0")
+  :group 'so-long)
+
 ;; Modes that go slowly and line lengths excessive
 ;; Font-lock performance becoming oppressive
 ;; All of my CPU tied up with strings
@@ -652,6 +665,9 @@ Displayed as part of `mode-line-misc-info'.
 
 `so-long-mode-line-label' defines the text to be displayed (if any).
 
+Face `so-long-mode-line-active' is used while mitigations are active, and
+`so-long-mode-line-inactive' is used if `so-long-revert' is called.
+
 Not displayed when `so-long-mode' is enabled, as the major mode construct
 serves the same purpose.")
 
@@ -675,8 +691,8 @@ serves the same purpose.")
                              'keymap ',map
                              'help-echo t ;; Suppress the mode-line value
                              'face (if so-long--active
-                                       'mode-line-emphasis
-                                     'mode-line)))
+                                       'so-long-mode-line-active
+                                     'so-long-mode-line-inactive)))
        " "))))
 
 ;; When the line's long
