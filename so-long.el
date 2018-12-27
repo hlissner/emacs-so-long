@@ -869,6 +869,21 @@ was not used, and to facilitate hooks for other so-long functionality.
 
 To revert to the original mode despite any potential performance issues,
 type \\[so-long-mode-revert], or else re-invoke it manually."
+  ;; Housekeeping.  `so-long-mode' might be invoked directly rather than via
+  ;; `so-long', so replicate the necessary behaviours.  We could use this same
+  ;; test in `so-long-after-change-major-mode' to run `so-long-hook', but that's
+  ;; not so obviously the right thing to do, so I've omitted it for now.
+  (unless so-long--calling
+    (setq so-long--active t
+          so-long-line-detected-p t
+          so-long-function 'so-long-mode
+          so-long-revert-function 'so-long-mode-revert)
+    ;; Reset `so-long-original-values' with the exception of `major-mode'
+    ;; which has just been stored by `so-long-change-major-mode'.
+    (let ((major (so-long-original 'major-mode :exists)))
+      (setq so-long-original-values (if major (list major) nil))))
+  ;; Use `after-change-major-mode-hook' to disable minor modes and override
+  ;; variables, so that we act after any globalized modes have acted.
   (add-hook 'after-change-major-mode-hook
             'so-long-after-change-major-mode :append :local)
   ;; Override variables.  This is the first of two instances where we do this
@@ -1145,6 +1160,8 @@ These local variables will thus not vanish on setting a major mode."
   (interactive)
   (unless so-long--calling
     (let ((so-long--calling t))
+      ;; Some of these settings need to be duplicated in `so-long-mode' to cover
+      ;; the case when that mode is invoked directly.
       (setq so-long-line-detected-p t) ;; ensure menu is present.
       (unless so-long-function
         (setq so-long-function (so-long-function)))
