@@ -1,4 +1,4 @@
-;;; so-long.el --- Say farewell to performance problems with minified code.
+;;; so-long.el --- Say farewell to performance problems with minified code.  -*- lexical-binding:t -*-
 ;;
 ;; Copyright (C) 2015, 2016, 2018 Free Software Foundation, Inc.
 
@@ -660,7 +660,7 @@ REPLACEMENT is a `so-long-action-alist' item."
   (with-selected-window (so-long-menu-click-window)
     (when so-long--active
       (so-long-revert))
-    (cl-destructuring-bind (key label actionfunc revertfunc)
+    (cl-destructuring-bind (_key _label actionfunc revertfunc)
         replacement
       (setq so-long-function actionfunc)
       (setq so-long-revert-function revertfunc)
@@ -956,7 +956,7 @@ Re-process local variables, and restore overridden variables and minor modes."
     (unless (derived-mode-p 'so-long-mode)
       (setq so-long-mode-line-info (so-long-mode-line-info)))))
 
-(defun so-long-mode-downgrade (&optional mode)
+(defun so-long-mode-downgrade (&optional _mode)
   "The default value for `so-long-file-local-mode-function'.
 
 When `so-long-function' is set to `so-long-mode', then we set it buffer-locally
@@ -975,7 +975,7 @@ if `so-long-file-local-mode-function' was nil."
   (when (eq (so-long-revert-function) 'so-long-mode-revert)
     (setq so-long-revert-function 'so-long-revert-function-overrides-only)))
 
-(defun so-long-inhibit (&optional mode)
+(defun so-long-inhibit (&optional _mode)
   "Prevent so-long from having any effect at all.
 
 This is a `so-long-file-local-mode-function' option."
@@ -1000,7 +1000,7 @@ function defined by `so-long-file-local-mode-function'."
   ;; no way of intercepting it.
   ;;
   (let ((try-locals (not (inhibit-local-variables-p)))
-        end done mode modes)
+        end _done _mode modes)
     ;; Once we drop the deprecated feature where mode: is also allowed to
     ;; specify minor-modes (ie, there can be more than one "mode:"), we can
     ;; remove this section and just let (hack-local-variables t) handle it.
