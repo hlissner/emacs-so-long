@@ -640,8 +640,8 @@ is selected, so we need to make sure we are acting on the correct buffer."
   ;; Refer to (info "(elisp) Click Events") regarding the form of the mouse
   ;; position list for clicks in the mode line.
   (or (and (mouse-event-p last-nonmenu-event)
-           (windowp (caadr last-nonmenu-event))
-           (caadr last-nonmenu-event))
+           (windowp (car (cadr last-nonmenu-event))) ; cXXXr only available
+           (car (cadr last-nonmenu-event)))          ; since Emacs 26.1
       (selected-window)))
 
 (defun so-long-menu-item-revert ()
@@ -940,7 +940,10 @@ Re-process local variables, and restore overridden variables and minor modes."
     (unless so-long-original-mode
       (error "Original mode unknown."))
     (funcall so-long-original-mode)
-    (hack-local-variables)
+    ;; Emacs 26+ has already called `hack-local-variables' (during
+    ;; `run-mode-hooks'), but for older versions we need to call it here.
+    (when (< emacs-major-version 26)
+      (hack-local-variables))
     ;; Restore minor modes.
     (so-long-restore-minor-modes)
     ;; Restore overridden variables.
