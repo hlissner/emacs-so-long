@@ -185,9 +185,11 @@
 
 ;; Implementation notes
 ;; --------------------
-;; This library advises `hack-local-variables' (in order that we may inhibit our
-;; functionality when a file-local mode is set), and `set-auto-mode' (in order
-;; to react after Emacs has chosen the major mode for a buffer).
+;; This library advises `set-auto-mode' (in order to react after Emacs has
+;; chosen the major mode for a buffer), and `hack-local-variables' (so that we
+;; may behave differently when a file-local mode is set).  In earlier versions
+;; of Emacs (< 26.1) we also advise `hack-one-local-variable' (to prevent a
+;; file-local mode from restoring the original major mode if we had changed it).
 ;;
 ;; Many variables are permanent-local because after the normal major mode has
 ;; been set, we potentially change the major mode to `so-long-mode', and it's
@@ -1088,6 +1090,37 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
 
+(defadvice hack-one-local-variable (around so-long--ignore-mode-dup disable)
+  "Prevent the original major mode being restored after `so-long-mode'.
+
+This advice is needed and enabled only for Emacs versions < 26.1.
+
+If the local 'mode' pseudo-variable is used, `set-auto-mode-0' will call it
+firstly, and subsequently `hack-one-local-variable' may call it again.
+
+Usually `hack-one-local-variable' tries to avoid processing that second call,
+by testing the value against `major-mode'; but as we may have changed the
+major mode to `so-long-mode' by this point, that protection is insufficient
+and so we need to perform our own test.
+
+The changes to `normal-mode' in Emacs 26.1 modified the execution order, and
+makes this advice unnecessary.  The relevant NEWS entry is:
+
+** File local and directory local variables are now initialized each
+time the major mode is set, not just when the file is first visited.
+These local variables will thus not vanish on setting a major mode."
+  (if (eq (ad-get-arg 0) 'mode)
+      ;; Adapted directly from `hack-one-local-variable'
+      (let ((mode (intern (concat (downcase (symbol-name (ad-get-arg 1)))
+                                  "-mode"))))
+        (unless (eq (indirect-function mode)
+                    (indirect-function (so-long-original 'major-mode)))
+          ad-do-it))
+    ;; VAR is not the 'mode' pseudo-variable.
+    ad-do-it))
+
+;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
+
 ;;;###autoload
 (defun so-long ()
   "Invoke `so-long-function' and run `so-long-hook'."
@@ -1141,6 +1174,10 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (ad-enable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
   (ad-activate 'hack-local-variables)
   (ad-activate 'set-auto-mode)
+  (when (< emacs-major-version 26)
+    (ad-enable-advice 'hack-one-local-variable
+                      'around 'so-long--ignore-mode-dup)
+    (ad-activate 'hack-one-local-variable))
   (add-to-list 'mode-line-misc-info '("" so-long-mode-line-info))
   (define-key-after (current-global-map) [menu-bar so-long]
     `(menu-item "So Long" nil
@@ -1159,6 +1196,10 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (ad-disable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
   (ad-activate 'hack-local-variables)
   (ad-activate 'set-auto-mode)
+  (when (< emacs-major-version 26)
+    (ad-disable-advice 'hack-one-local-variable
+                       'around 'so-long--ignore-mode-dup)
+    (ad-activate 'hack-one-local-variable))
   (setq mode-line-misc-info
         (delete '("" so-long-mode-line-info) mode-line-misc-info))
   (define-key (current-global-map) [menu-bar so-long] nil)
