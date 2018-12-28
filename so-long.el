@@ -1156,11 +1156,12 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (let ((so-long--set-auto-mode t))
     ad-do-it) ; `set-auto-mode'   ; may cause `so-long--inhibited' to be set.
   ;; Test the new major mode for long lines.
-  (when so-long-enabled
-    (unless so-long--inhibited
-      (when (and (apply 'derived-mode-p so-long-target-modes)
-                 (so-long-line-detected-p))
-        (so-long)))))
+  (and so-long-enabled
+       (not so-long--inhibited)
+       (not so-long--calling)
+       (apply #'derived-mode-p so-long-target-modes)
+       (so-long-line-detected-p)
+       (so-long)))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
 
