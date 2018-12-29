@@ -904,7 +904,7 @@ This is a `so-long-function' option."
     map)
   "Major mode keymap and menu for `so-long-mode'.")
 
-(define-derived-mode so-long-mode nil "So long"
+(define-derived-mode so-long-mode nil "So Long"
   "This major mode is the default `so-long-action' option.
 
 Many Emacs modes struggle with buffers which contain excessively long lines,
