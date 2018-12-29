@@ -305,6 +305,10 @@
   ;; local variables, and hence call itself).
   "Non-nil while `so-long' or `so-long-revert' is executing.")
 
+(defvar-local so-long-detected-p nil
+  "Non-nil if `so-long' has been invoked (even if subsequently reverted).")
+(put 'so-long-detected-p 'permanent-local t)
+
 (defgroup so-long nil
   "Prevent unacceptable performance degradation with very long lines."
   :prefix "so-long"
@@ -352,7 +356,11 @@ most cases, but there are some exceptions to this."
   :group 'so-long)
 
 (defcustom so-long-predicate 'so-long-detected-long-line-p
-  "Called by `so-long-detected-p' to decide whether action is needed.
+  "Function, called after `set-auto-mode' to decide whether action is needed.
+
+Only called if the major mode is a member of `so-long-target-modes'.
+
+If the function returns non-nil, `so-long' will be invoked.
 
 The specified function will be called with no arguments.
 
@@ -419,7 +427,7 @@ subsequently called."
 (defcustom so-long-action 'so-long-mode
   "The action taken by `so-long' when long lines are detected.
 
-\(Long lines are determined by `so-long-detected-p' after `set-auto-mode'.)
+\(Long lines are determined by `so-long-predicate' after `set-auto-mode'.)
 
 The value is a key to one of the options defined by `so-long-action-alist'.
 
@@ -779,17 +787,6 @@ serves the same purpose.")
 ;; When Emacs is sad
 ;; We change automatically to faster code
 ;; And then I won't feel so mad
-
-(defvar-local so-long-detected-p nil
-  "Non-nil when long lines have been detected.")
-(put 'so-long-detected-p 'permanent-local t)
-
-(defun so-long-detected-p ()
-  "Return the result of `so-long-predicate'.
-
-By default, this calls `so-long-detected-long-line-p'."
-  (setq so-long-detected-p
-        (funcall so-long-predicate)))
 
 (defun so-long-detected-long-line-p ()
   "Following any initial comments and blank lines, the next N lines of the
@@ -1176,7 +1173,7 @@ We can't act before this point, because some major modes must be exempt
 \(binary file modes, for example).  Instead, we act only when the selected
 major mode is a member (or derivative of a member) of `so-long-target-modes'.
 
-`so-long-detected-p' then determines whether the mode change is needed."
+`so-long-predicate' then determines whether the mode change is needed."
   (setq so-long--inhibited nil) ; is permanent-local
   (when so-long-enabled
     (so-long-check-header-modes)) ; may cause `so-long--inhibited' to be set.
@@ -1187,7 +1184,7 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
        (not so-long--inhibited)
        (not so-long--calling)
        (apply #'derived-mode-p so-long-target-modes)
-       (so-long-detected-p)
+       (setq so-long-detected-p (funcall so-long-predicate))
        (so-long)))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
