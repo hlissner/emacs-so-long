@@ -530,7 +530,7 @@ was established."
   (if (provided-mode-derived-p mode 'so-long-mode)
       (setq so-long--inhibited t)
     ;; Call `so-long-file-local-mode-function'.
-    (when (functionp so-long-file-local-mode-function)
+    (when so-long-file-local-mode-function
       (funcall so-long-file-local-mode-function mode))))
 
 (defcustom so-long-minor-modes
@@ -1241,7 +1241,7 @@ These local variables will thus not vanish on setting a major mode."
         (when (and (boundp mode) mode)
           (so-long-remember mode)))
       ;; Call the configured `so-long-function'.
-      (when (functionp so-long-function)
+      (when so-long-function
         (funcall so-long-function)
         ;; Set `so-long--active' last, as it isn't permanent-local.
         (setq so-long--active t))
@@ -1261,7 +1261,7 @@ These local variables will thus not vanish on setting a major mode."
   (interactive)
   (unless so-long--calling
     (let ((so-long--calling t))
-      (when (functionp so-long-revert-function)
+      (when so-long-revert-function
         (funcall so-long-revert-function)
         (setq so-long--active nil))
       (let ((inhibit-read-only t))
