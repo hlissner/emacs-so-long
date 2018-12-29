@@ -653,11 +653,10 @@ nil if no value was set, and a cons cell otherwise."
   (when (boundp variable)
     (setq so-long-original-values
           (assq-delete-all variable so-long-original-values))
-    (let ((locals (buffer-local-variables)))
-      (push (list variable
-                  (symbol-value variable)
-                  (consp (assq variable locals)))
-            so-long-original-values))))
+    (push (list variable
+                (symbol-value variable)
+                (local-variable-p variable))
+          so-long-original-values)))
 
 (defun so-long-change-major-mode ()
   "Ensures that `so-long-mode' knows the original `major-mode'
@@ -997,18 +996,24 @@ The modes are enabled in accordance with what was remembered in `so-long'."
 
 (defun so-long-restore-variable (variable)
   "Restore the remembered value (if any) for VARIABLE."
-  (let ((remembered (so-long-original variable :exists)))
-    (when remembered
-      ;; If a variable was originally buffer-local then restore it as
-      ;; a buffer-local variable, even if the global value is a match.
+  ;; In the instance where `so-long-mode-revert' has just reverted the major
+  ;; mode, note that `kill-all-local-variables' was already called by the
+  ;; original mode function, and so these 'overridden' variables may now have
+  ;; global rather than buffer-local values.
+  (let* ((remembered (so-long-original variable :exists))
+         (originally-local (nth 2 remembered)))
+    (if originally-local
+        ;; The variable originally existed with a buffer-local value, so we
+        ;; restore it as such (even if the global value is a match).
+        (set (make-local-variable variable) (cadr remembered))
+      ;; Either this variable did not exist initially, or it did not have a
+      ;; buffer-local value at that time.  In either case we kill the current
+      ;; buffer-local value (if any) in order to restore the original state.
       ;;
-      ;; If the variable was originally global and the current value
-      ;; matches its original value, then leave it alone.
-      ;;
-      ;; Otherwise set it buffer-locally to the original value.
-      (unless (and (equal (symbol-value variable) (cadr remembered))
-                   (not (nth 2 remembered))) ;; originally global
-        (set (make-local-variable variable) (cadr remembered))))))
+      ;; It's possible that the global value has *changed* in the interim; but
+      ;; we can't know whether it's best to use the new global value, or retain
+      ;; the old value as a buffer-local value, so we keep it simple.
+      (kill-local-variable variable))))
 
 (defun so-long-mode-revert ()
   "Call the `major-mode' which was selected before `so-long-mode' replaced it.
