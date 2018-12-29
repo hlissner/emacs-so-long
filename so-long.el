@@ -239,6 +239,7 @@
 ;;       - New user option `so-long-variable-overrides'.
 ;;       - New user option `so-long-skip-leading-comments'.
 ;;       - New user option `so-long-file-local-mode-function'.
+;;       - New user option `so-long-predicate'.
 ;;       - New variable and function `so-long-function'.
 ;;       - New variable and function `so-long-revert-function'.
 ;;       - New command `so-long' to invoke `so-long-function' interactively.
@@ -252,7 +253,7 @@
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
-;;       - Performance improvements for `so-long-line-detected-p'.
+;;       - Performance improvements for `so-long-detected-long-line-p'.
 ;; 0.7.6 - Bug fix for `so-long-mode-hook' losing its default value.
 ;; 0.7.5 - Documentation.
 ;;       - Added sgml-mode and nxml-mode to `so-long-target-modes'.
@@ -312,7 +313,7 @@
 (defcustom so-long-threshold 250
   "Maximum line length permitted before invoking `so-long-function'.
 
-See `so-long-line-detected-p' for details."
+See `so-long-detected-long-line-p' for details."
   :type 'integer
   :package-version '(so-long . "1.0")
   :group 'so-long)
@@ -326,7 +327,7 @@ or the end of the buffer is reached.
 If `so-long-skip-leading-comments' is nil then comments and blank lines will
 be counted.
 
-See `so-long-line-detected-p' for details."
+See `so-long-detected-long-line-p' for details."
   :type '(choice (integer :tag "Limit")
                  (const :tag "Unlimited" nil))
   :package-version '(so-long . "1.0")
@@ -335,7 +336,7 @@ See `so-long-line-detected-p' for details."
 (defcustom so-long-skip-leading-comments t
   "Non-nil to ignore all leading comments and whitespace.
 
-See `so-long-line-detected-p' for details."
+See `so-long-detected-long-line-p' for details."
   :type 'boolean
   :package-version '(so-long . "1.0")
   :group 'so-long)
@@ -347,6 +348,17 @@ See `so-long-line-detected-p' for details."
 Our primary use-case is minified programming code, so `prog-mode' covers
 most cases, but there are some exceptions to this."
   :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
+  :package-version '(so-long . "1.0")
+  :group 'so-long)
+
+(defcustom so-long-predicate 'so-long-detected-long-line-p
+  "Called by `so-long-detected-p' to decide whether action is needed.
+
+The specified function will be called with no arguments.
+
+Defaults to `so-long-detected-long-line-p'."
+  :type '(choice (const so-long-detected-long-line-p)
+                 (function :tag "Custom function"))
   :package-version '(so-long . "1.0")
   :group 'so-long)
 
@@ -407,7 +419,7 @@ subsequently called."
 (defcustom so-long-action 'so-long-mode
   "The action taken by `so-long' when long lines are detected.
 
-\(Long lines are determined by `so-long-line-detected-p' after `set-auto-mode'.)
+\(Long lines are determined by `so-long-detected-p' after `set-auto-mode'.)
 
 The value is a key to one of the options defined by `so-long-action-alist'.
 
@@ -768,11 +780,18 @@ serves the same purpose.")
 ;; We change automatically to faster code
 ;; And then I won't feel so mad
 
-(defvar-local so-long-line-detected-p nil
+(defvar-local so-long-detected-p nil
   "Non-nil when long lines have been detected.")
-(put 'so-long-line-detected-p 'permanent-local t)
+(put 'so-long-detected-p 'permanent-local t)
 
-(defun so-long-line-detected-p ()
+(defun so-long-detected-p ()
+  "Return the result of `so-long-predicate'.
+
+By default, this calls `so-long-detected-long-line-p'."
+  (setq so-long-detected-p
+        (funcall so-long-predicate)))
+
+(defun so-long-detected-long-line-p ()
   "Following any initial comments and blank lines, the next N lines of the
 buffer will be tested for excessive length (where \"excessive\" means above
 `so-long-threshold', and N is `so-long-max-lines').
@@ -781,7 +800,9 @@ Returns non-nil if any such excessive-length line is detected.
 
 If `so-long-skip-leading-comments' is nil then the N lines will be counted
 starting from the first line of the buffer.  In this instance you will likely
-want to increase `so-long-max-lines' to allow for possible comments."
+want to increase `so-long-max-lines' to allow for possible comments.
+
+This is the default value of `so-long-predicate'."
   (let ((count 0) start)
     (save-excursion
       (goto-char (point-min))
@@ -832,7 +853,6 @@ want to increase `so-long-max-lines' to allow for possible comments."
           (unless (or (bolp)
                       (and (eobp) (<= (- (point) start)
                                       so-long-threshold)))
-            (setq so-long-line-detected-p t)
             (throw 'excessive t))
           (setq count (1+ count)))))))
 
@@ -875,7 +895,7 @@ This is a `so-long-function' option."
     (define-key map (kbd "C-c C-c") 'so-long-revert)
     ;; Define the major mode menu.  We have an awkward issue whereby
     ;; [menu-bar so-long] is already defined in the global map and is
-    ;; :visible so-long-line-detected-p, but we also want this to be
+    ;; :visible so-long-detected-p, but we also want this to be
     ;; available via the major mode construct in the mode line.
     ;; The following achieves the desired end result, as :visible nil
     ;; prevents this from duplicating its contents in the menu bar,
@@ -923,7 +943,7 @@ type \\[so-long-mode-revert], or else re-invoke it manually."
   ;; not so obviously the right thing to do, so I've omitted it for now.
   (unless so-long--calling
     (setq so-long--active t
-          so-long-line-detected-p t
+          so-long-detected-p t
           so-long-function 'so-long-mode
           so-long-revert-function 'so-long-mode-revert)
     ;; Reset `so-long-original-values' with the exception of `major-mode'
@@ -1156,7 +1176,7 @@ We can't act before this point, because some major modes must be exempt
 \(binary file modes, for example).  Instead, we act only when the selected
 major mode is a member (or derivative of a member) of `so-long-target-modes'.
 
-`so-long-line-detected-p' then determines whether the mode change is needed."
+`so-long-detected-p' then determines whether the mode change is needed."
   (setq so-long--inhibited nil) ; is permanent-local
   (when so-long-enabled
     (so-long-check-header-modes)) ; may cause `so-long--inhibited' to be set.
@@ -1167,7 +1187,7 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
        (not so-long--inhibited)
        (not so-long--calling)
        (apply #'derived-mode-p so-long-target-modes)
-       (so-long-line-detected-p)
+       (so-long-detected-p)
        (so-long)))
 
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
@@ -1211,7 +1231,7 @@ These local variables will thus not vanish on setting a major mode."
     (let ((so-long--calling t))
       ;; Some of these settings need to be duplicated in `so-long-mode' to cover
       ;; the case when that mode is invoked directly.
-      (setq so-long-line-detected-p t) ;; ensure menu is present.
+      (setq so-long-detected-p t) ;; ensure menu is present.
       (unless so-long-function
         (setq so-long-function (so-long-function)))
       (unless so-long-revert-function
@@ -1268,7 +1288,7 @@ These local variables will thus not vanish on setting a major mode."
     `(menu-item "So Long" nil
                 ;; See also `so-long-mode-map'.
                 :visible (or so-long--active
-                             so-long-line-detected-p
+                             so-long-detected-p
                              (derived-mode-p 'so-long-mode))
                 :filter ,(lambda (_cmd) (so-long-menu))))
   (setq so-long-enabled t))
