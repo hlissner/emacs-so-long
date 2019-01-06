@@ -250,6 +250,7 @@
 ;;       - Added "So Long" menu, including all selectable actions.
 ;;       - Added mode-line indicator, user option `so-long-mode-line-label',
 ;;         and faces `so-long-mode-line-active', `so-long-mode-line-inactive'.
+;;       - New help commands `so-long-commentary' and `so-long-customize'.
 ;;       - Renamed `so-long-mode-enabled' to `so-long-enabled'.
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
@@ -690,7 +691,8 @@ Called during `change-major-mode-hook'."
 (defun so-long-menu ()
   "Dynamically generate the \"So Long\" menu."
   ;; (info "(elisp) Menu Example")
-  (let ((map (make-sparse-keymap "So Long")))
+  (let ((map (make-sparse-keymap "So Long"))
+        (help-map (make-sparse-keymap "Help")))
     ;; `so-long-revert'.
     (define-key-after map [so-long-revert]
       '(menu-item "Revert to normal" so-long-menu-item-revert
@@ -710,6 +712,15 @@ Called during `change-major-mode-hook'."
             :enable (not (and so-long--active
                               (eq ',actionfunc so-long-function)
                               (eq ',revertfunc so-long-revert-function)))))))
+    ;; "Help" sub-menu.
+    (define-key-after map [so-long-help-separator]
+      '(menu-item "--"))
+    (define-key-after map [so-long-help]
+      `(menu-item "Help" ,help-map))
+    (define-key-after help-map [so-long-commentary]
+      '(menu-item "Commentary" so-long-commentary))
+    (define-key-after help-map [so-long-customize]
+      '(menu-item "Customize" so-long-customize))
     map))
 
 (defun so-long-menu-click-window ()
@@ -744,6 +755,18 @@ REPLACEMENT is a `so-long-action-alist' item."
       (setq so-long-revert-function revertfunc)
       (setq this-command 'so-long)
       (so-long))))
+
+;;;###autoload
+(defun so-long-commentary ()
+  "View the so-long documentation using `finder-commentary'."
+  (interactive)
+  (finder-commentary "so-long"))
+
+;;;###autoload
+(defun so-long-customize ()
+  "Open the so-long `customize' group."
+  (interactive)
+  (customize-group 'so-long))
 
 (defvar-local so-long-mode-line-info nil
   "Mode line construct displayed when `so-long' has been triggered.
