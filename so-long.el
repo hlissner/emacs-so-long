@@ -389,8 +389,15 @@ See `so-long-detected-long-line-p' for details."
   "`so-long' affects only these modes and their derivatives.
 
 Our primary use-case is minified programming code, so `prog-mode' covers
-most cases, but there are some exceptions to this."
-  :type '(repeat symbol) ;; not function, as may be unknown => mismatch.
+most cases, but there are some exceptions to this.
+
+If t, then all modes are targeted.  Note that this is only useful with a
+custom `so-long-predicate', as many file types (archives and binary files,
+for example) can safely contain long lines, and invoking `so-long' on such
+files would prevent Emacs from handling them correctly."
+  ;; Use 'symbol', as 'function' may be unknown => mismatch.
+  :type '(choice (repeat :tag "Specified modes" symbol)
+                 (const :tag "All modes" t))
   :package-version '(so-long . "1.0")
   :group 'so-long)
 
@@ -1249,7 +1256,8 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (and so-long-enabled
        (not so-long--inhibited)
        (not so-long--calling)
-       (apply #'derived-mode-p so-long-target-modes)
+       (or (eq so-long-target-modes t)
+           (apply #'derived-mode-p so-long-target-modes))
        (setq so-long-detected-p (funcall so-long-predicate))
        (so-long)))
 
