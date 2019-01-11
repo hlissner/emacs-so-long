@@ -1377,6 +1377,12 @@ These local variables will thus not vanish on setting a major mode."
 
 (provide 'so-long)
 
+;; Local Variables:
+;; emacs-lisp-docstring-fill-column: 80
+;; fill-column: 80
+;; indent-tabs-mode: nil
+;; End:
+
 ;; So long, farewell, auf wiedersehen, goodbye
 ;; You have to go, this code is minified
 ;; Goodbye!
