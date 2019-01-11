@@ -118,6 +118,17 @@
 ;; either via the major mode construct (when `so-long-mode' is active), or
 ;; in a separate mode line construct when some other major mode is active.
 
+;; Files with a file-local 'mode'
+;; ------------------------------
+;; A file-local major mode is likely to be safe even if long lines are detected,
+;; and so these files are treated as special cases.  When a file-local 'mode' is
+;; present, the function defined by the `so-long-file-local-mode-function' user
+;; option is called.  The default value will cause the `overrides-only' action
+;; to be used instead of the `so-long-mode' action, if the latter was going to
+;; be used for this file.  This option can also be configured to inhibit so-long
+;; entirely in this scenario, or to not treat a file-local mode as a special
+;; case at all.
+
 ;; Inhibiting and disabling minor modes
 ;; ------------------------------------
 ;; The simple way to disable most buffer-local minor modes is to add the mode
@@ -207,6 +218,33 @@
 ;;   (mapc (apply-partially 'add-to-list 'so-long-variable-overrides)
 ;;         '((show-trailing-whitespace . nil)
 ;;           (truncate-lines . nil))))
+
+;; Other ways of using so-long
+;; ---------------------------
+;; It may prove useful to automatically invoke `so-long-mode' and its
+;; performance benefits for certain files, irrespective of whether they
+;; contain long lines.
+;;
+;; To target specific files and extensions, using `auto-mode-alist' is the
+;; simplest method.  To add such an entry, use:
+;; (add-to-list 'auto-mode-alist (cons REGEXP 'so-long-mode))
+;; Where REGEXP is a regular expression matching the filename.  e.g.:
+;;
+;; * Any filename with a particular extension ".foo":
+;;   (rx ".foo" eos)
+;;
+;; * Any file in a specific directory:
+;;   (rx bos "/path/to/directory/")
+;;
+;; * Only *.c filenames under that directory:
+;;   (rx bos "/path/to/directory/" (zero-or-more not-newline) ".c" eos)
+;;
+;; * Match some sub-path anywhere in a filename:
+;;   (rx "/sub/path/foo")
+;;
+;; In Emacs 26.1 or later (see "Caveats" below) you also have the option of
+;; using file-local and directory-local variables to determine how so-long
+;; behaves.  e.g. -*- so-long-action: longlines-mode; -*-
 
 ;; Implementation notes
 ;; --------------------
@@ -435,13 +473,16 @@ The value is a key to one of the options defined by `so-long-action-alist'.
 The default action is to replace the original major mode with `so-long-mode'.
 Alternatively, `overrides-only' retains the original major mode while still
 disabling minor modes and overriding variables.  These are the only standard
-values for which `so-long-minor-modes' and `so-long-variable-overrides' will be
-automatically processed; but custom actions can also do these things.
+values for which `so-long-minor-modes' and `so-long-variable-overrides' will
+be automatically processed; but custom actions can also do these things.
 
 The value `longlines-mode' causes that minor mode to be enabled.  See
 longlines.el for more details.
 
-Each action likewise determines the behaviour of `so-long-revert'."
+Each action likewise determines the behaviour of `so-long-revert'.
+
+If the value is not defined in `so-long-action-alist' then no action will be
+taken."
   :type (so-long-action-type)
   :package-version '(so-long . "1.0")
   :group 'so-long)
