@@ -59,10 +59,10 @@
 ;;
 ;; Note that while the measures taken by this library can improve performance
 ;; dramatically when dealing with such files, this library does not have any
-;; effect on the fundamental limitations of the Emacs redisplay code itself;
-;; and so if you do need to edit the file, performance may still degrade as
-;; you get deeper into the long lines.  In such circumstances you may find
-;; that `longlines-mode' is the most helpful facility.
+;; effect on the fundamental limitations of the Emacs redisplay code itself; and
+;; so if you do need to edit the file, performance may still degrade as you get
+;; deeper into the long lines.  In such circumstances you may find that
+;; `longlines-mode' is the most helpful facility.
 ;;
 ;; Note also that the mitigations are automatically triggered when visiting a
 ;; file.  The library does not automatically detect if long lines are inserted
@@ -104,10 +104,10 @@
 ;; It is also possible to set the buffer-local `so-long-function' and
 ;; `so-long-revert-function' values directly -- any existing value for these
 ;; variables will be used in preference to the values defined by the selected
-;; action.  For directory-local or file-local usage it is preferable to set
-;; only `so-long-action', as all function variables are marked as 'risky',
-;; meaning you would need to add to `safe-local-variable-values' in order to
-;; avoid being queried about them.
+;; action.  For directory-local or file-local usage it is preferable to set only
+;; `so-long-action', as all function variables are marked as 'risky', meaning
+;; you would need to add to `safe-local-variable-values' in order to avoid being
+;; queried about them.
 ;;
 ;; All defined actions are presented in the "So Long" menu, which is visible
 ;; whenever long lines have been detected.  Selecting an action from the menu
@@ -115,8 +115,8 @@
 ;; newly-selected action is invoked.
 ;;
 ;; Aside from the menu bar, the menu is also available in the mode line --
-;; either via the major mode construct (when `so-long-mode' is active), or
-;; in a separate mode line construct when some other major mode is active.
+;; either via the major mode construct (when `so-long-mode' is active), or in
+;; a separate mode line construct when some other major mode is active.
 
 ;; Files with a file-local 'mode'
 ;; ------------------------------
@@ -164,23 +164,23 @@
 ;; Hooks
 ;; -----
 ;; `so-long-mode-hook' is the standard major mode hook, which runs between
-;; `change-major-mode-after-body-hook' and `after-change-major-mode-hook'
-;; if `so-long-mode' is invoked.
+;; `change-major-mode-after-body-hook' and `after-change-major-mode-hook' if
+;; `so-long-mode' is invoked.
 ;;
 ;; `so-long-hook' runs at the end of `so-long'.  Note that for the default
 ;; action `so-long-mode', this means globalized minor modes have finished acting
 ;; for the new major mode.
 ;;
 ;; Likewise, if the `so-long-revert' command is used to restore the original
-;; state then, once that has happened, `so-long-revert-hook' is run.
-;; This could be used to undo the effects of the previous hooks.
+;; state then, once that has happened, `so-long-revert-hook' is run.  This could
+;; be used to undo the effects of the previous hooks.
 
 ;; Troubleshooting
 ;; ---------------
-;; Any elisp library has the potential to cause performance problems; so
-;; while the default configuration addresses some important common cases,
-;; it's entirely possible that your own config introduces problem cases
-;; which are unknown to this library.
+;; Any elisp library has the potential to cause performance problems; so while
+;; the default configuration addresses some important common cases, it's
+;; entirely possible that your own config introduces problem cases which are
+;; unknown to this library.
 ;;
 ;; If visiting a file is still taking a very long time with so-long enabled,
 ;; you should test the following command:
