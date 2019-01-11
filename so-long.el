@@ -420,7 +420,7 @@ Defaults to `so-long-detected-long-line-p'."
   ;; endeavour to keep it up-to-date with `so-long-action-alist' by
   ;; calling this from `so-long-action-alist-setter'.
   `(radio ,@(mapcar (lambda (x) (list 'const :tag (cadr x) (car x)))
-                    so-long-action-alist)
+                    (assq-delete-all nil so-long-action-alist))
           (const :tag "Do nothing" nil)))
 
 (defun so-long-action-alist-setter (option value)
@@ -454,8 +454,8 @@ interface, and in the \"So Long\" menu.  ACTION and REVERT are functions:
 ACTION will be the `so-long-function' value when `so-long' is called, and
 REVERT will be the `so-long-revert-function' value, if `so-long-revert' is
 subsequently called."
-  :type '(alist :key-type (symbol :tag "Key")
-                :value-type (list (string :tag "Label")
+  :type '(alist :key-type (symbol :tag "Key" :value <action>)
+                :value-type (list (string :tag "Label" :value "<description>")
                                   (function :tag "Action")
                                   (function :tag "Revert")))
   :set #'so-long-action-alist-setter
@@ -481,8 +481,8 @@ longlines.el for more details.
 
 Each action likewise determines the behaviour of `so-long-revert'.
 
-If the value is not defined in `so-long-action-alist' then no action will be
-taken."
+If the value is nil, or not defined in `so-long-action-alist', then no action
+will be taken."
   :type (so-long-action-type)
   :package-version '(so-long . "1.0")
   :group 'so-long)
@@ -510,14 +510,16 @@ The specified function will be called with no arguments, after which
 (defun so-long-function ()
   "The value of `so-long-function', else derive from `so-long-action'."
   (or so-long-function
-      (let ((action (assq so-long-action so-long-action-alist)))
-        (nth 2 action))))
+      (and so-long-action
+           (let ((action (assq so-long-action so-long-action-alist)))
+             (nth 2 action)))))
 
 (defun so-long-revert-function ()
   "The value of `so-long-revert-function', else derive from `so-long-action'."
   (or so-long-revert-function
-      (let ((action (assq so-long-action so-long-action-alist)))
-        (nth 3 action))))
+      (and so-long-action
+           (let ((action (assq so-long-action so-long-action-alist)))
+             (nth 3 action)))))
 
 (defcustom so-long-file-local-mode-function 'so-long-mode-downgrade
   "Function to call during `set-auto-mode' when a file-local mode is set.
