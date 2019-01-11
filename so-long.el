@@ -71,7 +71,8 @@
 
 ;; Installation
 ;; ------------
-;; And add the following to your init file to enable the library:
+;; Use M-x so-long-enable to enable the functionality, or add the following to
+;; your init file to do so permanently:
 ;;
 ;; (when (require 'so-long nil :noerror)
 ;;   (so-long-enable))
@@ -79,39 +80,27 @@
 ;; If necessary, ensure that so-long.el is in a directory in your load-path.
 ;; (This step is not necessary if you are using Emacs 27+, or have installed the
 ;; GNU ELPA package.)
+;;
+;; To disable the functionality, use M-x so-long-disable.
 
-;; Configuration
-;; -------------
+;; Basic configuration
+;; -------------------
 ;; Use M-x customize-group RET so-long RET
 ;;
-;; Variables `so-long-target-modes', `so-long-threshold', `so-long-max-lines',
-;; and `so-long-enabled' determine whether action will be taken in a given
-;; buffer.  The tests are made after `set-auto-mode' has set the normal major
-;; mode.  The `so-long-action' variable determines what will be done.
-;;
-;; You can also use M-x so-long to invoke the behaviour manually.
-;;
-;; In Emacs 26+ it is also possible to use file- or directory-local variables to
-;; configure the behaviour for particular files.  (In earlier versions of Emacs
-;; the local variables are processed too late, and hence have no effect.)
+;; The user options `so-long-target-modes', `so-long-threshold', and
+;; `so-long-max-lines' determine whether action will be taken automatically when
+;; visiting a file, and `so-long-action' determines what will be done.
 
 ;; Actions and menus
 ;; -----------------
 ;; The user options `so-long-action' and `so-long-action-alist' determine what
 ;; will happen when `so-long' and `so-long-revert' are invoked, and you can add
-;; your own custom actions if you wish.
-;;
-;; It is also possible to set the buffer-local `so-long-function' and
-;; `so-long-revert-function' values directly -- any existing value for these
-;; variables will be used in preference to the values defined by the selected
-;; action.  For directory-local or file-local usage it is preferable to set only
-;; `so-long-action', as all function variables are marked as 'risky', meaning
-;; you would need to add to `safe-local-variable-values' in order to avoid being
-;; queried about them.
+;; your own custom actions if you wish.  The action can be invoked manually with
+;; M-x so-long.
 ;;
 ;; All defined actions are presented in the "So Long" menu, which is visible
 ;; whenever long lines have been detected.  Selecting an action from the menu
-;; will first cause the current action (if any) to be reverted, before the
+;; will firstly cause the current action (if any) to be reverted, before the
 ;; newly-selected action is invoked.
 ;;
 ;; Aside from the menu bar, the menu is also available in the mode line --
@@ -131,6 +120,9 @@
 
 ;; Inhibiting and disabling minor modes
 ;; ------------------------------------
+;; Certain minor modes cause significant performance issues in the presence of
+;; very long lines, and should be disabled automatically in this situation.
+;;
 ;; The simple way to disable most buffer-local minor modes is to add the mode
 ;; symbol to the `so-long-minor-modes' list.  Several modes are targeted by
 ;; default, and it is a good idea to customize this variable to add any
@@ -195,6 +187,10 @@
 ;;
 ;; In some cases it may be useful to set a file-local `mode' variable to
 ;; `so-long-mode', completely bypassing the automated decision process.
+;;
+;; If so-long itself is causing problems, it can be inhibited by setting the
+;; `so-long-enabled' variable to nil, or disabled entirely by calling the
+;; `so-long-disable' command.
 
 ;; Example configuration
 ;; ---------------------
@@ -245,6 +241,17 @@
 ;; In Emacs 26.1 or later (see "Caveats" below) you also have the option of
 ;; using file-local and directory-local variables to determine how so-long
 ;; behaves.  e.g. -*- so-long-action: longlines-mode; -*-
+;;
+;; The buffer-local `so-long-function' and `so-long-revert-function' values may
+;; be set directly (in a major mode hook, for instance), as any existing value
+;; for these variables will be used in preference to the values defined by the
+;; selected action.  For file-local or directory-local usage it is preferable to
+;; set only `so-long-action', as all function variables are marked as 'risky',
+;; meaning you would need to add to `safe-local-variable-values' in order to
+;; avoid being queried about them.
+;;
+;; Finally, the `so-long-predicate' user option enables the automated behaviour
+;; to be determined by a custom function, if greater control is needed.
 
 ;; Implementation notes
 ;; --------------------
@@ -264,9 +271,11 @@
 ;; `so-long-action') can be used as file- or dir-local values in Emacs 26+, but
 ;; not in previous versions of Emacs.  This is on account of improvements made
 ;; to `normal-mode' in 26.1, which altered the execution order with respect to
-;; when local variables are processed.  It is unlikely that equivalent support
-;; will be implemented for older versions of Emacs.  The exception to this
-;; caveat is the `mode' pseudo-variable, which is processed early in all
+;; when local variables are processed.  In earlier versions of Emacs the local
+;; variables are processed too late, and hence have no effect on the decision-
+;; making process for invoking `so-long'.  It is unlikely that equivalent
+;; support will be implemented for older versions of Emacs.  The exception to
+;; this caveat is the `mode' pseudo-variable, which is processed early in all
 ;; versions of Emacs, and can be set to `so-long-mode' if desired.
 
 ;;; Change Log:
