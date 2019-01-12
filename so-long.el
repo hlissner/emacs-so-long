@@ -333,8 +333,10 @@
 (declare-function longlines-mode "longlines")
 (defvar longlines-mode)
 
-(defvar so-long-enabled t
-  "Set to nil to prevent `so-long' from being triggered automatically.")
+(defvar so-long-enabled nil
+  "Set to nil to prevent `so-long' from being triggered automatically.
+
+Has no effect if `so-long-enable' has not been called.")
 
 (defvar-local so-long--active nil ; internal use
   "Non-nil when `so-long' mitigations are in effect.")
