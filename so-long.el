@@ -74,8 +74,8 @@
 ;; Use M-x so-long-enable to enable the functionality, or add the following to
 ;; your init file to do so permanently:
 ;;
-;; (when (require 'so-long nil :noerror)
-;;   (so-long-enable))
+;; ;; Avoid performance issues in files with very long lines.
+;; (so-long-enable)
 ;;
 ;; If necessary, ensure that so-long.el is in a directory in your load-path.
 ;; (This step is not necessary if you are using Emacs 27+, or have installed the
