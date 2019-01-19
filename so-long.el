@@ -542,18 +542,24 @@ The specified function will be called with no arguments, after which
 `so-long-revert-hook' runs.")
 (put 'so-long-revert-function 'permanent-local t)
 
-(defun so-long-function ()
-  "The value of `so-long-function', else derive from `so-long-action'."
+(defun so-long-function (&optional action-arg)
+  "The value of `so-long-function', else derive from `so-long-action'.
+
+If ACTION-ARG is provided, it is used in place of `so-long-action'."
   (or so-long-function
-      (and so-long-action
-           (let ((action (assq so-long-action so-long-action-alist)))
+      (and (or action-arg
+               (setq action-arg so-long-action))
+           (let ((action (assq action-arg so-long-action-alist)))
              (nth 2 action)))))
 
-(defun so-long-revert-function ()
-  "The value of `so-long-revert-function', else derive from `so-long-action'."
+(defun so-long-revert-function (&optional action-arg)
+  "The value of `so-long-revert-function', else derive from `so-long-action'.
+
+If ACTION-ARG is provided, it is used in place of `so-long-action'."
   (or so-long-revert-function
-      (and so-long-action
-           (let ((action (assq so-long-action so-long-action-alist)))
+      (and (or action-arg
+               (setq action-arg so-long-action))
+           (let ((action (assq action-arg so-long-action-alist)))
              (nth 3 action)))))
 
 (defcustom so-long-file-local-mode-function 'so-long-mode-downgrade
@@ -1317,23 +1323,35 @@ These local variables will thus not vanish on setting a major mode."
 ;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
 
 ;;;###autoload
-(defun so-long ()
+(defun so-long (&optional action)
   "Invoke `so-long-action' and run `so-long-hook'.
 
 This command is called when long lines are detected, when `global-so-long-mode'
 is enabled.
 
-The effects of the action can be undone by calling `so-long-revert'."
-  (interactive)
+The effects of the action can be undone by calling `so-long-revert'.
+
+If ACTION is provided, it is used instead of `so-long-action'.  With a prefix
+argument, select the action to use interactively."
+  (interactive
+   (list (and current-prefix-arg
+              (intern
+               (completing-read "Action (none): "
+                                (mapcar #'car so-long-action-alist)
+                                nil :require-match)))))
   (unless so-long--calling
     (let ((so-long--calling t))
+      ;; ACTION takes precedence if supplied.
+      (when action
+        (setq so-long-function nil
+              so-long-revert-function nil))
       ;; Some of these settings need to be duplicated in `so-long-mode' to cover
       ;; the case when that mode is invoked directly.
       (setq so-long-detected-p t) ;; ensure menu is present.
       (unless so-long-function
-        (setq so-long-function (so-long-function)))
+        (setq so-long-function (so-long-function action)))
       (unless so-long-revert-function
-        (setq so-long-revert-function (so-long-revert-function)))
+        (setq so-long-revert-function (so-long-revert-function action)))
       ;; Remember original settings.
       (setq so-long-original-values nil)
       (dolist (ovar so-long-variable-overrides)
