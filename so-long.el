@@ -71,17 +71,30 @@
 
 ;; Installation
 ;; ------------
-;; Use M-x so-long-enable to enable the functionality, or add the following to
-;; your init file to do so permanently:
+;; Use M-x global-so-long-mode to enable/toggle the functionality.  To enable
+;; the functionality by default, either customize the `global-so-long-mode' user
+;; option, or add the following to your init file:
 ;;
 ;; ;; Avoid performance issues in files with very long lines.
-;; (so-long-enable)
+;; (global-so-long-mode 1)
 ;;
-;; If necessary, ensure that so-long.el is in a directory in your load-path.
-;; (This step is not necessary if you are using Emacs 27+, or have installed the
-;; GNU ELPA package.)
+;; If necessary, ensure that so-long.el is in a directory in your load-path, and
+;; that the library has been loaded.  (These steps are not necessary if you are
+;; using Emacs 27+, or have installed the GNU ELPA package.)
+
+;; Usage
+;; -----
+;; In most cases you will simply enable `global-so-long-mode' and leave it to
+;; act automatically as necessary.
 ;;
-;; To disable the functionality, use M-x so-long-disable.
+;; On rare occasions you may choose to manually invoke either the `so-long'
+;; command, or the major mode `so-long-mode'.  The former invokes your preferred
+;; `so-long-action', exactly as the automatic behaviour would do if it detected
+;; long lines.  You might use this if a problematic file was not recognised, and
+;; you wished to trigger the performance improvements manually.  The major mode
+;; `so-long-mode' is one of the actions available to `so-long' but, like any
+;; other major mode, it can also be invoked directly if you have a need to do
+;; that (see also "Other ways of using so-long" below).
 
 ;; Basic configuration
 ;; -------------------
@@ -177,7 +190,10 @@
 ;; If visiting a file is still taking a very long time with so-long enabled,
 ;; you should test the following command:
 ;;
-;; emacs -Q -l /path/to/so-long.el -f so-long-enable <file>
+;; emacs -Q -l so-long -f global-so-long-mode <file>
+;;
+;; For versions of Emacs < 27, use:
+;; emacs -Q -l /path/to/so-long.el -f global-so-long-mode <file>
 ;;
 ;; If the file loads quickly when that command is used, you'll know that
 ;; something in your personal configuration is causing problems.  If this
@@ -189,8 +205,8 @@
 ;; `so-long-mode', completely bypassing the automated decision process.
 ;;
 ;; If so-long itself is causing problems, it can be inhibited by setting the
-;; `so-long-enabled' variable to nil, or disabled entirely by calling the
-;; `so-long-disable' command.
+;; `so-long-enabled' variable to nil, or by disabling the global mode with
+;; M-- M-x global-so-long-mode, or M-: (global-so-long-mode 0)
 
 ;; Example configuration
 ;; ---------------------
@@ -199,7 +215,7 @@
 ;;
 ;; ;; Enable so-long library.
 ;; (when (require 'so-long nil :noerror)
-;;   (so-long-enable)
+;;   (global-so-long-mode 1)
 ;;   ;; Basic settings.
 ;;   (setq so-long-action 'overrides-only)
 ;;   (setq so-long-threshold 1000)
@@ -281,6 +297,7 @@
 ;;; Change Log:
 ;;
 ;; 1.0   - Included in Emacs 27.1, and in GNU ELPA for prior versions of Emacs.
+;;       - New global mode `global-so-long-mode' to enable/disable the library.
 ;;       - New user option `so-long-action'.
 ;;       - New user option `so-long-action-alist' defining alternative actions.
 ;;       - New user option `so-long-variable-overrides'.
@@ -336,7 +353,7 @@
 (defvar so-long-enabled nil
   "Set to nil to prevent `so-long' from being triggered automatically.
 
-Has no effect if `so-long-enable' has not been called.")
+Has no effect if `global-so-long-mode' is not enabled.")
 
 (defvar-local so-long--active nil ; internal use
   "Non-nil when `so-long' mitigations are in effect.")
@@ -1010,14 +1027,8 @@ variables in accordance with `so-long-variable-overrides'.  These steps occur
 in `after-change-major-mode-hook', so that minor modes controlled by globalized
 minor modes can also be disabled.
 
-Some globalized minor modes may be inhibited by acting in `so-long-mode-hook'.
-
-By default this mode is essentially equivalent to `fundamental-mode', and
-exists mainly to provide information to the user as to why the expected mode
-was not used, and to facilitate hooks for other so-long functionality.
-
-To revert to the original mode despite any potential performance issues,
-type \\[so-long-mode-revert], or else re-invoke it manually."
+To restore the original major mode (along with the minor modes and variable
+values), despite potential performance issues, type \\[so-long-mode-revert]."
   ;; Housekeeping.  `so-long-mode' might be invoked directly rather than via
   ;; `so-long', so replicate the necessary behaviours.  We could use this same
   ;; test in `so-long-after-change-major-mode' to run `so-long-hook', but that's
@@ -1307,7 +1318,12 @@ These local variables will thus not vanish on setting a major mode."
 
 ;;;###autoload
 (defun so-long ()
-  "Invoke `so-long-action' and run `so-long-hook'."
+  "Invoke `so-long-action' and run `so-long-hook'.
+
+This command is called when long lines are detected, when `global-so-long-mode'
+is enabled.
+
+The effects of the action can be undone by calling `so-long-revert'."
   (interactive)
   (unless so-long--calling
     (let ((so-long--calling t))
@@ -1342,7 +1358,9 @@ These local variables will thus not vanish on setting a major mode."
         (run-hooks 'so-long-hook)))))
 
 (defun so-long-revert ()
-  "Revert `so-long-action' and run `so-long-revert-hook'."
+  "Revert `so-long-action' and run `so-long-revert-hook'.
+
+Undoes the effects of the `so-long' command."
   (interactive)
   (unless so-long--calling
     (let ((so-long--calling t))
@@ -1354,8 +1372,55 @@ These local variables will thus not vanish on setting a major mode."
 
 ;;;###autoload
 (defun so-long-enable ()
-  "Enable the so-long library's functionality."
+  "Enable the so-long library's functionality.
+
+Equivalent to calling (global-so-long-mode 1)"
   (interactive)
+  (global-so-long-mode 1))
+
+(defun so-long-disable ()
+  "Disable the so-long library's functionality.
+
+Equivalent to calling (global-so-long-mode 0)"
+  (interactive)
+  (global-so-long-mode 0))
+
+(make-obsolete 'so-long-enable 'global-so-long-mode "so-long 1.0")
+(make-obsolete 'so-long-disable 'global-so-long-mode "so-long 1.0")
+
+(define-minor-mode global-so-long-mode
+  "Toggle performance mitigations for files with long lines.
+
+Many Emacs modes struggle with buffers which contain excessively long lines,
+and may consequently cause unacceptable performance issues.
+
+This is commonly on account of 'minified' code (i.e. code that has been
+compacted into the smallest file size possible, which often entails removing
+newlines should they not be strictly necessary).
+
+When such files are detected, we invoke the selected `so-long-action' to
+mitigate potential performance problems in the buffer.
+
+Use \\[so-long-commentary] for more information.
+
+Use \\[so-long-customize] to configure the behaviour."
+  :global t
+  :group 'so-long
+  (if global-so-long-mode
+      (so-long--enable)
+    (so-long--disable)))
+
+(put 'global-so-long-mode 'variable-documentation
+     "Non-nil if the so-long library's functionality is enabled.
+
+Use \\[so-long-commentary] for more information.
+
+Setting this variable directly does not take effect;
+either customize it (see the info node `Easy Customization')
+or call the function `global-so-long-mode'.")
+
+(defun so-long--enable ()
+  "Enable the so-long library's functionality."
   (add-hook 'change-major-mode-hook 'so-long-change-major-mode)
   (ad-enable-advice 'hack-local-variables 'after 'so-long--file-local-mode)
   (ad-enable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
@@ -1375,9 +1440,8 @@ These local variables will thus not vanish on setting a major mode."
                 :filter ,(lambda (_cmd) (so-long-menu))))
   (setq so-long-enabled t))
 
-(defun so-long-disable ()
-  "Disable the so-long library's functionality."
-  (interactive)
+(defun so-long--disable ()
+  "Enable the so-long library's functionality."
   (remove-hook 'change-major-mode-hook 'so-long-change-major-mode)
   (ad-disable-advice 'hack-local-variables 'after 'so-long--file-local-mode)
   (ad-disable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
@@ -1393,7 +1457,7 @@ These local variables will thus not vanish on setting a major mode."
   (setq so-long-enabled nil))
 
 (defun so-long-unload-function ()
-  (so-long-disable)
+  (global-so-long-mode 0)
   nil)
 
 (provide 'so-long)
