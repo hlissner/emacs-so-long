@@ -42,15 +42,15 @@
 ;; and variables with performance implications (all configurable), in order to
 ;; enhance performance in the buffer.
 ;;
-;; By default we also invoke `so-long-mode' in place of the major mode that
-;; Emacs selected.  This is almost identical to `fundamental-mode', and so
-;; provides optimal major mode performance.  These kinds of minified files are
-;; typically not intended to be edited, so not providing the usual editing mode
-;; in such cases will rarely be an issue.  However, should the user wish to do
-;; so, the original mode may be reinstated easily in any given buffer using
-;; `so-long-revert' (the key binding for which is advertised when the major
-;; mode change occurs).  If you prefer not to change the major mode, the
-;; `overrides-only' action can be configured.
+;; By default we also invoke the major mode `so-long-mode' in place of the mode
+;; that Emacs selected.  This ensures that the original major mode cannot affect
+;; performance further, as well as making the so-long activity more obvious to
+;; the user.  These kinds of minified files are typically not intended to be
+;; edited, so not providing the usual editing mode in such cases will rarely be
+;; an issue.  However, should the user wish to do so, the original state of the
+;; buffer may be reinstated easily using `so-long-revert' (the key binding for
+;; which is advertised when the major mode change occurs).  If you prefer that
+;; the major mode not be changed, the `overrides-only' action can be configured.
 ;;
 ;; The user options `so-long-action' and `so-long-action-alist' determine what
 ;; will happen when `so-long' and `so-long-revert' are invoked, allowing
@@ -1023,15 +1023,12 @@ should they not be strictly necessary).  These kinds of files are typically
 not intended to be edited, so not providing the usual editing mode in these
 cases will rarely be an issue.
 
-When such files are detected, we invoke this mode.  This happens after
-`set-auto-mode' has set the major mode, should the selected major mode be
-a member (or derivative of a member) of `so-long-target-modes'.
+When such files are detected by `so-long-predicate', we invoke this major mode
+automatically (if it is the `so-long-action').
 
-After changing modes, any active minor modes listed in `so-long-minor-modes'
-are disabled for the current buffer, and buffer-local values are assigned to
-variables in accordance with `so-long-variable-overrides'.  These steps occur
-in `after-change-major-mode-hook', so that minor modes controlled by globalized
-minor modes can also be disabled.
+Any active minor modes listed in `so-long-minor-modes' are disabled for the
+current buffer, and buffer-local values are assigned to variables in accordance
+with `so-long-variable-overrides'.
 
 To restore the original major mode (along with the minor modes and variable
 values), despite potential performance issues, type \\[so-long-mode-revert]."
