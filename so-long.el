@@ -7,7 +7,7 @@
 ;; URL: https://savannah.nongnu.org/projects/so-long
 ;; Keywords: convenience
 ;; Created: 23 Dec 2015
-;; Package-Requires: ((emacs "24.3"))
+;; Package-Requires: ((emacs "24.4"))
 ;; Version: 1.0
 
 ;; This file is part of GNU Emacs.
@@ -319,6 +319,7 @@
 ;;       - Refactored the default hook values using variable overrides
 ;;         (and returning all the hooks to nil default values).
 ;;       - Performance improvements for `so-long-detected-long-line-p'.
+;;       - Converted defadvice to nadvice.
 ;; 0.7.6 - Bug fix for `so-long-mode-hook' losing its default value.
 ;; 0.7.5 - Documentation.
 ;;       - Added sgml-mode and nxml-mode to `so-long-target-modes'.
@@ -1242,7 +1243,9 @@ function defined by `so-long-file-local-mode-function'."
 ;; Code of mine, redefined
 ;; You look happy to tweak me
 
-(defadvice hack-local-variables (after so-long--file-local-mode disable)
+(defun so-long--hack-local-variables (orig-fun &optional handle-mode &rest args)
+  ;; Advice, enabled with:
+  ;; (advice-add 'hack-local-variables :around #'so-long--hack-local-variables)
   "Ensure that `so-long' defers to file-local mode declarations if necessary.
 
 This advice acts after the HANDLE-MODE:t call to `hack-local-variables'.
@@ -1256,13 +1259,15 @@ If a file-local mode is detected, then we call the function defined by
   ;; The first arg to `hack-local-variables' is HANDLE-MODE since Emacs 26.1,
   ;; and MODE-ONLY in earlier versions.  In either case we are interested in
   ;; whether it has the value `t'.
-  (and (eq (ad-get-arg 0) t)
-       ad-return-value ; A file-local mode was set.
-       (so-long-handle-file-local-mode ad-return-value)))
+  (let ((retval (apply orig-fun handle-mode args)))
+    (and (eq handle-mode t)
+         retval ; A file-local mode was set.
+         (so-long-handle-file-local-mode retval))
+    retval))
 
-;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
-
-(defadvice set-auto-mode (around so-long--set-auto-mode disable)
+(defun so-long--set-auto-mode (orig-fun &rest args)
+  ;; Advice, enabled with:
+  ;; (advice-add 'set-auto-mode :around #'so-long--set-auto-mode)
   "Maybe call `so-long' for files with very long lines.
 
 This advice acts after `set-auto-mode' has set the buffer's major mode.
@@ -1276,7 +1281,8 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
   (when so-long-enabled
     (so-long-check-header-modes)) ; may cause `so-long--inhibited' to be set.
   (let ((so-long--set-auto-mode t))
-    ad-do-it) ; `set-auto-mode'   ; may cause `so-long--inhibited' to be set.
+    ;; Call `set-auto-mode'.
+    (apply orig-fun args)) ; may cause `so-long--inhibited' to be set.
   ;; Test the new major mode for long lines.
   (and so-long-enabled
        (not so-long--inhibited)
@@ -1286,9 +1292,10 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
        (setq so-long-detected-p (funcall so-long-predicate))
        (so-long)))
 
-;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
-
-(defadvice hack-one-local-variable (around so-long--ignore-mode-dup disable)
+(defun so-long--hack-one-local-variable (orig-fun var val)
+  ;; Advice, enabled with:
+  ;; (advice-add 'hack-one-local-variable :around
+  ;;             #'so-long--hack-one-local-variable)
   "Prevent the original major mode being restored after `so-long-mode'.
 
 This advice is needed and enabled only for Emacs versions < 26.1.
@@ -1307,17 +1314,15 @@ makes this advice unnecessary.  The relevant NEWS entry is:
 ** File local and directory local variables are now initialized each
 time the major mode is set, not just when the file is first visited.
 These local variables will thus not vanish on setting a major mode."
-  (if (eq (ad-get-arg 0) 'mode)
+  (if (eq var 'mode)
       ;; Adapted directly from `hack-one-local-variable'
-      (let ((mode (intern (concat (downcase (symbol-name (ad-get-arg 1)))
+      (let ((mode (intern (concat (downcase (symbol-name val))
                                   "-mode"))))
         (unless (eq (indirect-function mode)
                     (indirect-function (so-long-original 'major-mode)))
-          ad-do-it))
+          (funcall orig-fun var val)))
     ;; VAR is not the 'mode' pseudo-variable.
-    ad-do-it))
-
-;; n.b. Call (so-long-enable) after changes, to re-activate the advice.
+    (funcall orig-fun var val)))
 
 ;;;###autoload
 (defun so-long (&optional action)
@@ -1437,14 +1442,11 @@ or call the function `global-so-long-mode'.")
 (defun so-long--enable ()
   "Enable the so-long library's functionality."
   (add-hook 'change-major-mode-hook 'so-long-change-major-mode)
-  (ad-enable-advice 'hack-local-variables 'after 'so-long--file-local-mode)
-  (ad-enable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
-  (ad-activate 'hack-local-variables)
-  (ad-activate 'set-auto-mode)
+  (advice-add 'hack-local-variables :around #'so-long--hack-local-variables)
+  (advice-add 'set-auto-mode :around #'so-long--set-auto-mode)
   (when (< emacs-major-version 26)
-    (ad-enable-advice 'hack-one-local-variable
-                      'around 'so-long--ignore-mode-dup)
-    (ad-activate 'hack-one-local-variable))
+    (advice-add 'hack-one-local-variable :around
+                #'so-long--hack-one-local-variable))
   (add-to-list 'mode-line-misc-info '("" so-long-mode-line-info))
   (define-key-after (current-global-map) [menu-bar so-long]
     `(menu-item "So Long" nil
@@ -1458,14 +1460,11 @@ or call the function `global-so-long-mode'.")
 (defun so-long--disable ()
   "Enable the so-long library's functionality."
   (remove-hook 'change-major-mode-hook 'so-long-change-major-mode)
-  (ad-disable-advice 'hack-local-variables 'after 'so-long--file-local-mode)
-  (ad-disable-advice 'set-auto-mode 'around 'so-long--set-auto-mode)
-  (ad-activate 'hack-local-variables)
-  (ad-activate 'set-auto-mode)
+  (advice-remove 'hack-local-variables #'so-long--hack-local-variables)
+  (advice-remove 'set-auto-mode #'so-long--set-auto-mode)
   (when (< emacs-major-version 26)
-    (ad-disable-advice 'hack-one-local-variable
-                       'around 'so-long--ignore-mode-dup)
-    (ad-activate 'hack-one-local-variable))
+    (advice-remove 'hack-one-local-variable
+                   #'so-long--hack-one-local-variable))
   (setq mode-line-misc-info
         (delete '("" so-long-mode-line-info) mode-line-misc-info))
   (define-key (current-global-map) [menu-bar so-long] nil)
