@@ -50,7 +50,8 @@
 ;; an issue.  However, should the user wish to do so, the original state of the
 ;; buffer may be reinstated easily using `so-long-revert' (the key binding for
 ;; which is advertised when the major mode change occurs).  If you prefer that
-;; the major mode not be changed, the `overrides-only' action can be configured.
+;; the major mode not be changed, the `so-long-minor-mode' action can be
+;; configured.
 ;;
 ;; The user options `so-long-action' and `so-long-action-alist' determine what
 ;; will happen when `so-long' and `so-long-revert' are invoked, allowing
@@ -125,11 +126,11 @@
 ;; A file-local major mode is likely to be safe even if long lines are detected,
 ;; and so these files are treated as special cases.  When a file-local 'mode' is
 ;; present, the function defined by the `so-long-file-local-mode-function' user
-;; option is called.  The default value will cause the `overrides-only' action
-;; to be used instead of the `so-long-mode' action, if the latter was going to
-;; be used for this file.  This option can also be configured to inhibit so-long
-;; entirely in this scenario, or to not treat a file-local mode as a special
-;; case at all.
+;; option is called.  The default value will cause the `so-long-minor-mode'
+;; action to be used instead of the `so-long-mode' action, if the latter was
+;; going to be used for this file.  This option can also be configured to
+;; inhibit so-long entirely in this scenario, or to not treat a file-local mode
+;; as a special case at all.
 
 ;; Inhibiting and disabling minor modes
 ;; ------------------------------------
@@ -143,7 +144,7 @@
 ;; performance implications.
 ;;
 ;; These minor modes are disabled if `so-long-action' is set to either
-;; `so-long-mode' or `overrides-only'.  If `so-long-revert' is called, then
+;; `so-long-mode' or `so-long-minor-mode'.  If `so-long-revert' is called, then
 ;; the original values are restored.
 ;;
 ;; In the case of globalized minor modes, be sure to specify the buffer-local
@@ -160,8 +161,8 @@
 ;; Overriding variables
 ;; --------------------
 ;; `so-long-variable-overrides' is an alist mapping variable symbols to values.
-;; If `so-long-action' is set to either `so-long-mode' or `overrides-only', the
-;; buffer-local value for each variable in the list is set to the associated
+;; If `so-long-action' is set to either `so-long-mode' or `so-long-minor-mode',
+;; the buffer-local value for each variable in the list is set to the associated
 ;; value in the alist.  Use this to enforce values which will improve
 ;; performance or otherwise avoid undesirable behaviours.  If `so-long-revert'
 ;; is called, then the original values are restored.
@@ -217,7 +218,7 @@
 ;; (when (require 'so-long nil :noerror)
 ;;   (global-so-long-mode 1)
 ;;   ;; Basic settings.
-;;   (setq so-long-action 'overrides-only)
+;;   (setq so-long-action 'so-long-minor-mode)
 ;;   (setq so-long-threshold 1000)
 ;;   (setq so-long-max-lines 100)
 ;;   ;; Additional target major modes to trigger for.
@@ -308,8 +309,9 @@
 ;;       - New variable and function `so-long-revert-function'.
 ;;       - New command `so-long' to invoke `so-long-function' interactively.
 ;;       - New command `so-long-revert' to invoke `so-long-revert-function'.
-;;       - Support retaining the original major mode while still disabling
-;;         minor modes and overriding variables.
+;;       - New minor mode action `so-long-minor-mode' facilitates retaining the
+;;         original major mode, while still disabling minor modes and overriding
+;;         variables like the major mode `so-long-mode'.
 ;;       - Support `longlines-mode' as a `so-long-action' option.
 ;;       - Added "So Long" menu, including all selectable actions.
 ;;       - Added mode-line indicator, user option `so-long-mode-line-label',
@@ -471,10 +473,10 @@ Defaults to `so-long-detected-long-line-p'."
      "Change major mode to so-long-mode"
      so-long-mode
      so-long-mode-revert)
-    (overrides-only
-     "Disable minor modes and override variables"
-     so-long-function-overrides-only
-     so-long-revert-function-overrides-only)
+    (so-long-minor-mode
+     "Enable so-long-minor-mode"
+     turn-on-so-long-minor-mode
+     turn-off-so-long-minor-mode)
     (longlines-mode
      "Enable longlines-mode"
      so-long-function-longlines-mode
@@ -507,7 +509,7 @@ subsequently called."
 The value is a key to one of the options defined by `so-long-action-alist'.
 
 The default action is to replace the original major mode with `so-long-mode'.
-Alternatively, `overrides-only' retains the original major mode while still
+Alternatively, `so-long-minor-mode' retains the original major mode while still
 disabling minor modes and overriding variables.  These are the only standard
 values for which `so-long-minor-modes' and `so-long-variable-overrides' will
 be automatically processed; but custom actions can also do these things.
@@ -572,10 +574,10 @@ file-local mode which was established.
 This happens before `so-long' is called, and so this function can modify the
 subsequent action.
 
-The value `so-long-mode-downgrade' means that `so-long-function-overrides-only'
-will be used in place of `so-long-mode' -- respecting the file-local mode, but
-still overriding minor modes and variables, as if `so-long-action' had been set
-to `overrides-only'.
+The value `so-long-mode-downgrade' means `so-long-minor-mode' will be used in
+place of `so-long-mode' -- therefore respecting the file-local mode value, yet
+still overriding minor modes and variables (as if `so-long-action' had been set
+to `so-long-minor-mode').
 
 The value `so-long-inhibit' means that so-long will not take any action at all
 for this file.
@@ -656,7 +658,7 @@ This happens after any globalized minor modes have acted, so that buffer-local
 modes controlled by globalized modes can also be targeted.
 
 By default this happens if `so-long-action' is set to either `so-long-mode'
-or `overrides-only'.  If `so-long-revert' is subsequently invoked, then the
+or `so-long-minor-mode'.  If `so-long-revert' is subsequently invoked, then the
 disabled modes are re-enabled by calling them with the numeric argument 1.
 
 `so-long-hook' can be used where more custom behaviour is desired.
@@ -677,9 +679,9 @@ they are in Emacs core, GNU ELPA, or elsewhere."
   "Variables to override, and the values to override them with.
 
 The variables are given buffer-local values.  By default this happens if
-`so-long-action' is set to either `so-long-mode' or `overrides-only'.  If
-`so-long-revert' is subsequently invoked, then the variables are restored to
-their original states."
+`so-long-action' is set to either `so-long-mode' or `so-long-minor-mode'.
+If `so-long-revert' is subsequently invoked, then the variables are restored
+to their original states."
   :type '(alist :key-type (variable :tag "Variable")
                 :value-type (sexp :tag "Value"))
   :options '((bidi-display-reordering boolean)
@@ -962,9 +964,7 @@ This is the default value of `so-long-predicate'."
           (setq count (1+ count)))))))
 
 (defun so-long-function-longlines-mode ()
-  "Enable minor mode `longlines-mode'.
-
-This is a `so-long-function' option."
+  "Enable minor mode `longlines-mode'."
   (require 'longlines)
   (so-long-remember 'longlines-mode)
   (longlines-mode 1))
@@ -978,17 +978,52 @@ This is a `so-long-function' option."
           (longlines-mode (if (cadr state) 1 0)))
       (longlines-mode 0))))
 
-(defun so-long-function-overrides-only ()
-  "Disable minor modes and override variables, but retain the major mode.
+(defun turn-on-so-long-minor-mode ()
+  "Enable minor mode `so-long-minor-mode'."
+  (so-long-minor-mode 1))
 
-This is a `so-long-function' option."
-  (so-long-disable-minor-modes)
-  (so-long-override-variables))
+(defun turn-off-so-long-minor-mode ()
+  "Disable minor mode `so-long-minor-mode'."
+  (so-long-minor-mode 0))
 
-(defun so-long-revert-function-overrides-only ()
-  "Restore original state of the overridden minor modes and variables."
-  (so-long-restore-minor-modes)
-  (so-long-restore-variables))
+(define-minor-mode so-long-minor-mode
+  "This is the minor mode equivalent of `so-long-mode'.
+
+Any active minor modes listed in `so-long-minor-modes' are disabled for the
+current buffer, and buffer-local values are assigned to variables in accordance
+with `so-long-variable-overrides'."
+  nil nil nil
+  (if so-long-minor-mode ;; We are enabling the mode.
+      (progn
+        ;; Housekeeping.  `so-long-minor-mode' might be invoked directly rather
+        ;; than via `so-long', so replicate the necessary behaviours.  The minor
+        ;; mode also cares about whether `so-long' was already active, as we do
+        ;; not want to remember values which were potentially overridden already.
+        (unless (or so-long--calling so-long--active)
+          (setq so-long--active t
+                so-long-detected-p t
+                so-long-function 'turn-on-so-long-minor-mode
+                so-long-revert-function 'turn-off-so-long-minor-mode)
+          (setq so-long-original-values nil)
+          (dolist (ovar so-long-variable-overrides)
+            (so-long-remember (car ovar)))
+          (dolist (mode so-long-minor-modes)
+            (when (and (boundp mode) mode)
+              (so-long-remember mode)))
+          (unless (derived-mode-p 'so-long-mode)
+            (setq so-long-mode-line-info (so-long-mode-line-info))))
+        ;; Now perform the overrides.
+        (so-long-disable-minor-modes)
+        (so-long-override-variables))
+    ;; We are disabling the mode.
+    (unless so-long--calling ;; Housekeeping.
+      (when (eq so-long-function 'turn-on-so-long-minor-mode)
+        (setq so-long--active nil))
+      (unless (derived-mode-p 'so-long-mode)
+        (setq so-long-mode-line-info (so-long-mode-line-info))))
+    ;; Restore the overridden settings.
+    (so-long-restore-minor-modes)
+    (so-long-restore-variables)))
 
 ;; How do you solve a problem like a long line?
 ;; How do you stop a mode from slowing down?
@@ -1157,10 +1192,10 @@ Re-process local variables, and restore overridden variables and minor modes."
 (defun so-long-mode-downgrade (&optional _mode)
   "The default value for `so-long-file-local-mode-function'.
 
-A buffer-local 'downgrade' from the `so-long-mode' action to `overrides-only'.
+A buffer-local 'downgrade' from `so-long-mode' to `so-long-minor-mode'.
 
 When `so-long-function' is set to `so-long-mode', then we change it to to
-`so-long-function-overrides-only' instead -- retaining the file-local major
+`turn-on-so-long-minor-mode' instead -- retaining the file-local major
 mode, but still doing everything else that `so-long-mode' would have done.
 `so-long-revert-function' is likewise updated.
 
@@ -1168,9 +1203,9 @@ If `so-long-function' has any value other than `so-long-mode', we do nothing,
 as if `so-long-file-local-mode-function' was nil."
   (when (and (symbolp (so-long-function))
              (provided-mode-derived-p (so-long-function) 'so-long-mode))
-    ;; Downgrade from `so-long-mode' to the `overrides-only' behaviour.
-    (setq so-long-function 'so-long-function-overrides-only
-          so-long-revert-function 'so-long-revert-function-overrides-only)))
+    ;; Downgrade from `so-long-mode' to the `so-long-minor-mode' behaviour.
+    (setq so-long-function 'turn-on-so-long-minor-mode
+          so-long-revert-function 'turn-off-so-long-minor-mode)))
 
 (defun so-long-inhibit (&optional _mode)
   "Prevent so-long from having any effect at all.
@@ -1222,7 +1257,9 @@ function defined by `so-long-file-local-mode-function'."
                        (forward-char -1)
                      (goto-char end))
                    (skip-chars-backward " \t")
-                   (push (intern (concat (downcase (buffer-substring beg (point))) "-mode"))
+                   (push (intern (concat (downcase (buffer-substring
+                                                    beg (point)))
+                                         "-mode"))
                          modes)))
              ;; Simple -*-MODE-*- case.
              (push (intern (concat (downcase (buffer-substring (point) end))
