@@ -1449,6 +1449,10 @@ invoked."
       (let ((inhibit-read-only t))
         (run-hooks 'so-long-revert-hook)))))
 
+;; Duplicate the `so-long-revert' documentation for the menu item.
+(put 'so-long-menu-item-revert 'function-documentation
+     (documentation 'so-long-revert t))
+
 ;;;###autoload
 (defun so-long-enable ()
   "Enable the so-long library's functionality.
