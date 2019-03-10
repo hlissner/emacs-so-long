@@ -455,21 +455,21 @@ Defaults to `so-long-detected-long-line-p'."
 ;; function means we also need to declare it beforehand.
 (defvar so-long-action-alist)
 
-(defun so-long-action-type ()
+(defun so-long--action-type ()
   "Generate a :type for `so-long-action' based on `so-long-action-alist'."
   ;; :type seemingly cannot be a form to be evaluated on demand, so we
   ;; endeavour to keep it up-to-date with `so-long-action-alist' by
-  ;; calling this from `so-long-action-alist-setter'.
+  ;; calling this from `so-long--action-alist-setter'.
   `(radio ,@(mapcar (lambda (x) (list 'const :tag (cadr x) (car x)))
                     (assq-delete-all nil so-long-action-alist))
           (const :tag "Do nothing" nil)))
 
-(defun so-long-action-alist-setter (option value)
+(defun so-long--action-alist-setter (option value)
   "The :set function for `so-long-action-alist'."
   ;; Set the value as normal.
   (set-default option value)
   ;; Update the :type of `so-long-action' to present the updated values.
-  (put 'so-long-action 'custom-type (so-long-action-type)))
+  (put 'so-long-action 'custom-type (so-long--action-type)))
 
 (defcustom so-long-action-alist
   '((so-long-mode
@@ -499,7 +499,7 @@ subsequently called."
                 :value-type (list (string :tag "Label" :value "<description>")
                                   (function :tag "Action")
                                   (function :tag "Revert")))
-  :set #'so-long-action-alist-setter
+  :set #'so-long--action-alist-setter
   :package-version '(so-long . "1.0")
   :group 'so-long)
 (put 'so-long-action-alist 'risky-local-variable t)
@@ -524,7 +524,7 @@ Each action likewise determines the behaviour of `so-long-revert'.
 
 If the value is nil, or not defined in `so-long-action-alist', then no action
 will be taken."
-  :type (so-long-action-type)
+  :type (so-long--action-type)
   :package-version '(so-long . "1.0")
   :group 'so-long)
 
@@ -1227,7 +1227,7 @@ as if `so-long-file-local-mode-function' was nil."
 This is a `so-long-file-local-mode-function' option."
   (setq so-long--inhibited t))
 
-(defun so-long-check-header-modes ()
+(defun so-long--check-header-modes ()
   ;; See also "Files with a file-local 'mode'" in the Commentary.
   "Handles the header-comments processing in `set-auto-mode'.
 
@@ -1309,7 +1309,7 @@ This advice acts after the HANDLE-MODE:t call to `hack-local-variables'.
 \(MODE-ONLY in Emacs versions < 26).
 
 File-local header comments are currently an exception, and are processed by
-`so-long-check-header-modes' (see which for details)."
+`so-long--check-header-modes' (see which for details)."
   ;; The first arg to `hack-local-variables' is HANDLE-MODE since Emacs 26.1,
   ;; and MODE-ONLY in earlier versions.  In either case we are interested in
   ;; whether it has the value `t'.
@@ -1333,7 +1333,7 @@ major mode is a member (or derivative of a member) of `so-long-target-modes'.
 `so-long-predicate' then determines whether the mode change is needed."
   (setq so-long--inhibited nil) ; is permanent-local
   (when so-long-enabled
-    (so-long-check-header-modes)) ; may cause `so-long--inhibited' to be set.
+    (so-long--check-header-modes)) ; may cause `so-long--inhibited' to be set.
   (let ((so-long--set-auto-mode t))
     ;; Call `set-auto-mode'.
     (apply orig-fun args)) ; may cause `so-long--inhibited' to be set.
