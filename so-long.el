@@ -769,6 +769,19 @@ nil if no value was set, and a cons cell otherwise."
                 (local-variable-p variable))
           so-long-original-values)))
 
+(defun so-long-remember-all (&optional reset)
+  "Remember the current variable and minor mode values.
+
+Stores the existing values for each entry in `so-long-variable-overrides' and
+`so-long-minor-modes'."
+  (when reset
+    (setq so-long-original-values nil))
+  (dolist (ovar so-long-variable-overrides)
+    (so-long-remember (car ovar)))
+  (dolist (mode so-long-minor-modes)
+    (when (and (boundp mode) mode)
+      (so-long-remember mode))))
+
 (defun so-long-change-major-mode ()
   "Ensure that `so-long-mode' knows the original `major-mode'
 even when invoked interactively.
@@ -1012,12 +1025,7 @@ This minor mode is a standard `so-long-action' option."
                 so-long-detected-p t
                 so-long-function 'turn-on-so-long-minor-mode
                 so-long-revert-function 'turn-off-so-long-minor-mode)
-          (setq so-long-original-values nil)
-          (dolist (ovar so-long-variable-overrides)
-            (so-long-remember (car ovar)))
-          (dolist (mode so-long-minor-modes)
-            (when (and (boundp mode) mode)
-              (so-long-remember mode)))
+          (so-long-remember-all :reset)
           (unless (derived-mode-p 'so-long-mode)
             (setq so-long-mode-line-info (so-long-mode-line-info))))
         ;; Now perform the overrides.
@@ -1409,12 +1417,7 @@ argument, select the action to use interactively."
       (unless so-long-revert-function
         (setq so-long-revert-function (so-long-revert-function action)))
       ;; Remember original settings.
-      (setq so-long-original-values nil)
-      (dolist (ovar so-long-variable-overrides)
-        (so-long-remember (car ovar)))
-      (dolist (mode so-long-minor-modes)
-        (when (and (boundp mode) mode)
-          (so-long-remember mode)))
+      (so-long-remember-all :reset)
       ;; Call the configured `so-long-function'.
       (when so-long-function
         (funcall so-long-function)
