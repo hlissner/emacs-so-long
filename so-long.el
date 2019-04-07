@@ -62,12 +62,12 @@
 ;; the major and minor mode actions provided by this library, `longlines-mode'
 ;; is also supported by default as an alternative action.
 ;;
-;; Note that while the measures taken by this library can improve performance
-;; dramatically when dealing with such files, this library does not have any
-;; effect on the fundamental limitations of the Emacs redisplay code itself; and
-;; so if you do need to edit the file, performance may still degrade as you get
-;; deeper into the long lines.  In such circumstances you may find that
-;; `longlines-mode' is the most helpful facility.
+;; Note that while the measures taken can improve performance dramatically when
+;; dealing with such files, this library does not have any effect on the
+;; fundamental limitations of the Emacs redisplay code itself; and so if you do
+;; need to edit the file, performance may still degrade as you get deeper into
+;; the long lines.  In such circumstances you may find that `longlines-mode' is
+;; the most helpful facility.
 ;;
 ;; Note also that the mitigations are automatically triggered when visiting a
 ;; file.  The library does not automatically detect if long lines are inserted
@@ -87,6 +87,22 @@
 ;; that the library has been loaded.  (These steps are not necessary if you are
 ;; using Emacs 27+, or have installed the GNU ELPA package.)
 
+;; * Overview of modes and commands
+;; --------------------------------
+;; - `global-so-long-mode' - A global minor mode which enables the automated
+;;    behaviour, causing the user's preferred action to be invoked whenever a
+;;    newly-visited file contains excessively long lines.
+;; - `so-long-mode' - A major mode, and the default action.
+;; - `so-long-minor-mode' - A minor mode version of the major mode, and an
+;;    alternative action.
+;; - `longlines-mode' - A minor mode provided by the longlines.el library,
+;;    and another alternative action.
+;; - `so-long' - Manually invoke the user's preferred action, enabling its
+;;    performance improvements for the current buffer.
+;; - `so-long-revert' - Restore the original state of the buffer.
+;; - `so-long-customize' - Configure the user options.
+;; - `so-long-commentary' - Read this documentation in outline-mode.
+
 ;; * Usage
 ;; -------
 ;; In most cases you will simply enable `global-so-long-mode' and leave it to
@@ -103,10 +119,14 @@
 ;; (major and minor modes, respectively).  Both of these modes are actions
 ;; available to `so-long' but, like any other mode, they can be invoked directly
 ;; if you have a need to do that (see also "Other ways of using so-long" below).
+;;
+;; If the behaviour ever triggers when you did not want it to, you can use the
+;; `so-long-revert' command to restore the buffer to its original state.
 
 ;; * Basic configuration
 ;; ---------------------
 ;; Use M-x customize-group RET so-long RET
+;; (or M-x so-long-customize RET)
 ;;
 ;; The user options `so-long-target-modes', `so-long-threshold', and
 ;; `so-long-max-lines' determine whether action will be taken automatically when
@@ -116,8 +136,10 @@
 ;; -------------------
 ;; The user options `so-long-action' and `so-long-action-alist' determine what
 ;; will happen when `so-long' and `so-long-revert' are invoked, and you can add
-;; your own custom actions if you wish.  The action can be invoked manually with
-;; M-x so-long.
+;; your own custom actions if you wish.  The selected action can be invoked
+;; manually with M-x so-long; and in general M-x so-long-revert will undo the
+;; effects of whichever action was used (which is particularly useful when the
+;; action is triggered automatically, but the detection was a 'false positive'.)
 ;;
 ;; All defined actions are presented in the "So Long" menu, which is visible
 ;; whenever long lines have been detected.  Selecting an action from the menu
@@ -130,7 +152,8 @@
 
 ;; * Files with a file-local 'mode'
 ;; --------------------------------
-;; A file-local major mode is likely to be safe even if long lines are detected,
+;; A file-local major mode is likely to be safe even if long lines are detected
+;; (as the author of the file would otherwise be unlikely to have set that mode),
 ;; and so these files are treated as special cases.  When a file-local 'mode' is
 ;; present, the function defined by the `so-long-file-local-mode-function' user
 ;; option is called.  The default value will cause the `so-long-minor-mode'
@@ -208,8 +231,12 @@
 ;; likely alleviate the issue by customizing `so-long-minor-modes' or
 ;; `so-long-variable-overrides' accordingly.
 ;;
+;; The in-built profiler can be an effective way of discovering the cause
+;; of such problems.  Refer to M-: (info "(elisp) Profiling") RET
+;;
 ;; In some cases it may be useful to set a file-local `mode' variable to
 ;; `so-long-mode', completely bypassing the automated decision process.
+;; Refer to M-: (info "(emacs) Specifying File Variables") RET
 ;;
 ;; If so-long itself is causing problems, it can be inhibited by setting the
 ;; `so-long-enabled' variable to nil, or by disabling the global mode with
@@ -260,8 +287,17 @@
 ;; - Match some sub-path anywhere in a filename:
 ;;   (rx "/sub/path/foo")
 ;;
+;; - A specific individual file:
+;;   (rx bos "/path/to/file" eos)
+;;
+;; Another way to target individual files is to set a file-local `mode'
+;; variable.  Refer to M-: (info "(emacs) Specifying File Variables") RET
+;;
+;; `so-long-minor-mode' can also be called directly if desired.  e.g.:
+;; (add-hook 'FOO-mode-hook 'so-long-minor-mode)
+;;
 ;; In Emacs 26.1 or later (see "Caveats" below) you also have the option of
-;; using file-local and directory-local variables to determine how so-long
+;; using file-local and directory-local variables to determine how `so-long'
 ;; behaves.  e.g. -*- so-long-action: longlines-mode; -*-
 ;;
 ;; The buffer-local `so-long-function' and `so-long-revert-function' values may
@@ -447,9 +483,8 @@ files would prevent Emacs from handling them correctly."
 
 Only called if the major mode is a member of `so-long-target-modes'.
 
-If the function returns non-nil, `so-long' will be invoked.
-
-The specified function will be called with no arguments.
+The specified function will be called with no arguments.  If it returns non-nil
+then `so-long' will be invoked.
 
 Defaults to `so-long-detected-long-line-p'."
   :type '(choice (const so-long-detected-long-line-p)
@@ -472,7 +507,7 @@ Defaults to `so-long-detected-long-line-p'."
           (const :tag "Do nothing" nil)))
 
 (defun so-long--action-alist-setter (option value)
-  "The :set function for `so-long-action-alist'."
+  "The customize :set function for `so-long-action-alist'."
   ;; Set the value as normal.
   (set-default option value)
   ;; Update the :type of `so-long-action' to present the updated values.
@@ -690,6 +725,7 @@ they are in Emacs core, GNU ELPA, or elsewhere."
 
 The variables are given buffer-local values.  By default this happens if
 `so-long-action' is set to either `so-long-mode' or `so-long-minor-mode'.
+
 If `so-long-revert' is subsequently invoked, then the variables are restored
 to their original states."
   :type '(alist :key-type (variable :tag "Variable")
@@ -767,7 +803,10 @@ nil if no value was set, and a cons cell otherwise."
     (cadr (assq key so-long-original-values))))
 
 (defun so-long-remember (variable)
-  "Push the `symbol-value' for VARIABLE to `so-long-original-values'."
+  "Store the value of VARIABLE in `so-long-original-values'.
+
+We additionally store a boolean value which indicates whether that value was
+buffer-local."
   (when (boundp variable)
     (setq so-long-original-values
           (assq-delete-all variable so-long-original-values))
@@ -779,8 +818,10 @@ nil if no value was set, and a cons cell otherwise."
 (defun so-long-remember-all (&optional reset)
   "Remember the current variable and minor mode values.
 
-Stores the existing values for each entry in `so-long-variable-overrides' and
-`so-long-minor-modes'."
+Stores the existing value for each entry in `so-long-variable-overrides'.
+Stores the name of each enabled mode from the list `so-long-minor-modes'.
+
+If RESET is non-nil, remove any existing values before storing the new ones."
   (when reset
     (setq so-long-original-values nil))
   (dolist (ovar so-long-variable-overrides)
@@ -1110,9 +1151,8 @@ This minor mode is a standard `so-long-action' option."
 (define-derived-mode so-long-mode nil "So Long"
   "This major mode is the default `so-long-action' option.
 
-The normal reason for this mode being active is that `global-so-long-mode'
-is enabled, and `so-long-predicate' has detected that the file contains
-excessively-long lines.
+The normal reason for this mode being active is that `global-so-long-mode' is
+enabled, and `so-long-predicate' has detected that the file contains long lines.
 
 Many Emacs modes struggle with buffers which contain excessively long lines,
 and may consequently cause unacceptable performance issues.
@@ -1128,7 +1168,11 @@ for the current buffer, and buffer-local values are assigned to variables in
 accordance with `so-long-variable-overrides'.
 
 To restore the original major mode (along with the minor modes and variable
-values), despite potential performance issues, type \\[so-long-mode-revert]."
+values), despite potential performance issues, type \\[so-long-revert].
+
+Use \\[so-long-commentary] for more information.
+
+Use \\[so-long-customize] to configure the behaviour."
   ;; Housekeeping.  `so-long-mode' might be invoked directly rather than via
   ;; `so-long', so replicate the necessary behaviours.  We could use this same
   ;; test in `so-long-after-change-major-mode' to run `so-long-hook', but that's
@@ -1149,7 +1193,7 @@ values), despite potential performance issues, type \\[so-long-mode-revert]."
         (setq so-long-original-values
               (if major (list major) nil)))))
   ;; Use `after-change-major-mode-hook' to disable minor modes and override
-  ;; variables, so that we act after any globalized modes have acted.
+  ;; variables.  Append, to act after any globalized modes have acted.
   (add-hook 'after-change-major-mode-hook
             'so-long-after-change-major-mode :append :local)
   ;; Override variables.  This is the first of two instances where we do this
