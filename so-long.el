@@ -78,8 +78,8 @@
 ;; the functionality by default, either customize the `global-so-long-mode' user
 ;; option, or add the following to your init file:
 ;;
-;; ;; Avoid performance issues in files with very long lines.
-;; (global-so-long-mode 1)
+;;   ;; Avoid performance issues in files with very long lines.
+;;   (global-so-long-mode 1)
 ;;
 ;; If necessary, ensure that so-long.el is in a directory in your load-path, and
 ;; that the library has been loaded.  (These steps are not necessary if you are
@@ -218,23 +218,23 @@
 ;; If you prefer to configure in code rather than via the customize interface,
 ;; then you might use something along these lines:
 ;;
-;; ;; Enable so-long library.
-;; (when (require 'so-long nil :noerror)
-;;   (global-so-long-mode 1)
-;;   ;; Basic settings.
-;;   (setq so-long-action 'so-long-minor-mode)
-;;   (setq so-long-threshold 1000)
-;;   (setq so-long-max-lines 100)
-;;   ;; Additional target major modes to trigger for.
-;;   (mapc (apply-partially 'add-to-list 'so-long-target-modes)
-;;         '(sgml-mode nxml-mode))
-;;   ;; Additional buffer-local minor modes to disable.
-;;   (mapc (apply-partially 'add-to-list 'so-long-minor-modes)
-;;         '(diff-hl-mode diff-hl-amend-mode diff-hl-flydiff-mode))
-;;   ;; Additional variables to override.
-;;   (mapc (apply-partially 'add-to-list 'so-long-variable-overrides)
-;;         '((show-trailing-whitespace . nil)
-;;           (truncate-lines . nil))))
+;;   ;; Enable so-long library.
+;;   (when (require 'so-long nil :noerror)
+;;     (global-so-long-mode 1)
+;;     ;; Basic settings.
+;;     (setq so-long-action 'so-long-minor-mode)
+;;     (setq so-long-threshold 1000)
+;;     (setq so-long-max-lines 100)
+;;     ;; Additional target major modes to trigger for.
+;;     (mapc (apply-partially 'add-to-list 'so-long-target-modes)
+;;           '(sgml-mode nxml-mode))
+;;     ;; Additional buffer-local minor modes to disable.
+;;     (mapc (apply-partially 'add-to-list 'so-long-minor-modes)
+;;           '(diff-hl-mode diff-hl-amend-mode diff-hl-flydiff-mode))
+;;     ;; Additional variables to override.
+;;     (mapc (apply-partially 'add-to-list 'so-long-variable-overrides)
+;;           '((show-trailing-whitespace . nil)
+;;             (truncate-lines . nil))))
 
 ;; Other ways of using so-long
 ;; ---------------------------
