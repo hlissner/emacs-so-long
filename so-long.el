@@ -358,6 +358,11 @@
 (declare-function longlines-mode "longlines")
 (defvar longlines-mode)
 
+(declare-function outline-next-visible-heading "outline")
+(declare-function outline-previous-visible-heading "outline")
+(declare-function outline-toggle-children "outline")
+(declare-function outline-toggle-children "outline")
+
 (defvar so-long-enabled nil
   "Set to nil to prevent `so-long' from being triggered automatically.
 
@@ -872,10 +877,36 @@ REPLACEMENT is a `so-long-action-alist' item."
 
 ;;;###autoload
 (defun so-long-commentary ()
-  "View the so-long documentation using `finder-commentary'."
+  "View the so-long documentation in `outline-mode'."
   (interactive)
-  (finder-commentary "so-long")
-  (outline-minor-mode 1))
+  (let ((buf "*So Long: Commentary*"))
+    (when (buffer-live-p (get-buffer buf))
+      (kill-buffer buf))
+    ;; Use `finder-commentary' to generate the buffer.
+    (require 'finder)
+    (cl-letf (((symbol-function 'finder-summary) #'ignore))
+      (finder-commentary "so-long"))
+    (let ((inhibit-read-only t))
+      (when (looking-at "^Commentary:\n\n")
+        (replace-match "so-long.el\n\n"))
+      (save-excursion
+        (while (re-search-forward "^-+$" nil :noerror)
+          (replace-match ""))))
+    (rename-buffer buf)
+    ;; Enable `outline-mode' and `view-mode' for user convenience.
+    (outline-mode)
+    (view-mode 1)
+    ;; Add some custom local bindings.
+    (let ((map (make-sparse-keymap)))
+      (define-key map (kbd "TAB") #'outline-toggle-children)
+      (define-key map (kbd "<M-tab>") #'outline-toggle-children)
+      (define-key map (kbd "M-n") #'outline-next-visible-heading)
+      (define-key map (kbd "M-p") #'outline-previous-visible-heading)
+      (set-keymap-parent map (current-local-map))
+      (use-local-map map))
+    ;; Display the So Long menu.
+    (let ((so-long-action nil))
+      (so-long))))
 
 ;;;###autoload
 (defun so-long-customize ()
