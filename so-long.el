@@ -27,6 +27,8 @@
 
 ;;; Commentary:
 ;;
+;; * Introduction
+;; --------------
 ;; When the lines in a file are so long that performance could suffer to an
 ;; unacceptable degree, we say "so long" to the slow modes and options enabled
 ;; in that buffer, and invoke something much more basic in their place.
@@ -72,8 +74,8 @@
 ;; into an existing buffer (although the `so-long' command can be invoked
 ;; manually in such situations).
 
-;; Installation
-;; ------------
+;; * Installation
+;; --------------
 ;; Use M-x global-so-long-mode to enable/toggle the functionality.  To enable
 ;; the functionality by default, either customize the `global-so-long-mode' user
 ;; option, or add the following to your init file:
@@ -85,8 +87,8 @@
 ;; that the library has been loaded.  (These steps are not necessary if you are
 ;; using Emacs 27+, or have installed the GNU ELPA package.)
 
-;; Usage
-;; -----
+;; * Usage
+;; -------
 ;; In most cases you will simply enable `global-so-long-mode' and leave it to
 ;; act automatically as required, in accordance with your configuration (see
 ;; "Basic configuration" below).
@@ -102,16 +104,16 @@
 ;; available to `so-long' but, like any other mode, they can be invoked directly
 ;; if you have a need to do that (see also "Other ways of using so-long" below).
 
-;; Basic configuration
-;; -------------------
+;; * Basic configuration
+;; ---------------------
 ;; Use M-x customize-group RET so-long RET
 ;;
 ;; The user options `so-long-target-modes', `so-long-threshold', and
 ;; `so-long-max-lines' determine whether action will be taken automatically when
 ;; visiting a file, and `so-long-action' determines what will be done.
 
-;; Actions and menus
-;; -----------------
+;; * Actions and menus
+;; -------------------
 ;; The user options `so-long-action' and `so-long-action-alist' determine what
 ;; will happen when `so-long' and `so-long-revert' are invoked, and you can add
 ;; your own custom actions if you wish.  The action can be invoked manually with
@@ -126,8 +128,8 @@
 ;; either via the major mode construct (when `so-long-mode' is active), or in
 ;; a separate mode line construct when some other major mode is active.
 
-;; Files with a file-local 'mode'
-;; ------------------------------
+;; * Files with a file-local 'mode'
+;; --------------------------------
 ;; A file-local major mode is likely to be safe even if long lines are detected,
 ;; and so these files are treated as special cases.  When a file-local 'mode' is
 ;; present, the function defined by the `so-long-file-local-mode-function' user
@@ -137,8 +139,8 @@
 ;; this option can also be configured to inhibit so-long entirely in this
 ;; scenario, or to not treat a file-local mode as a special case at all.
 
-;; Inhibiting and disabling minor modes
-;; ------------------------------------
+;; * Inhibiting and disabling minor modes
+;; --------------------------------------
 ;; Certain minor modes cause significant performance issues in the presence of
 ;; very long lines, and should be disabled automatically in this situation.
 ;;
@@ -163,8 +165,8 @@
 ;; determine whether it's possible to inhibit it for a single buffer -- and if
 ;; so, how best to do that, as not all modes are alike.
 
-;; Overriding variables
-;; --------------------
+;; * Overriding variables
+;; ----------------------
 ;; `so-long-variable-overrides' is an alist mapping variable symbols to values.
 ;; If `so-long-action' is set to either `so-long-mode' or `so-long-minor-mode',
 ;; the buffer-local value for each variable in the list is set to the associated
@@ -172,8 +174,8 @@
 ;; performance or otherwise avoid undesirable behaviours.  If `so-long-revert'
 ;; is called, then the original values are restored.
 
-;; Hooks
-;; -----
+;; * Hooks
+;; -------
 ;; `so-long-hook' runs at the end of the `so-long' command, after the configured
 ;; action has been invoked.
 ;;
@@ -185,8 +187,8 @@
 ;; `after-change-major-mode-hook'); and `so-long-minor-mode-hook' (when that
 ;; mode is enabled or disabled).
 
-;; Troubleshooting
-;; ---------------
+;; * Troubleshooting
+;; -----------------
 ;; Any elisp library has the potential to cause performance problems; so while
 ;; the default configuration addresses some important common cases, it's
 ;; entirely possible that your own config introduces problem cases which are
@@ -213,8 +215,8 @@
 ;; `so-long-enabled' variable to nil, or by disabling the global mode with
 ;; M-- M-x global-so-long-mode, or M-: (global-so-long-mode 0)
 
-;; Example configuration
-;; ---------------------
+;; * Example configuration
+;; -----------------------
 ;; If you prefer to configure in code rather than via the customize interface,
 ;; then you might use something along these lines:
 ;;
@@ -236,8 +238,8 @@
 ;;           '((show-trailing-whitespace . nil)
 ;;             (truncate-lines . nil))))
 
-;; Other ways of using so-long
-;; ---------------------------
+;; * Other ways of using so-long
+;; -----------------------------
 ;; It may prove useful to automatically invoke major mode `so-long-mode' for
 ;; certain files, irrespective of whether they contain long lines.
 ;;
@@ -246,16 +248,16 @@
 ;; (add-to-list 'auto-mode-alist (cons REGEXP 'so-long-mode))
 ;; Where REGEXP is a regular expression matching the filename.  e.g.:
 ;;
-;; * Any filename with a particular extension ".foo":
+;; - Any filename with a particular extension ".foo":
 ;;   (rx ".foo" eos)
 ;;
-;; * Any file in a specific directory:
+;; - Any file in a specific directory:
 ;;   (rx bos "/path/to/directory/")
 ;;
-;; * Only *.c filenames under that directory:
+;; - Only *.c filenames under that directory:
 ;;   (rx bos "/path/to/directory/" (zero-or-more not-newline) ".c" eos)
 ;;
-;; * Match some sub-path anywhere in a filename:
+;; - Match some sub-path anywhere in a filename:
 ;;   (rx "/sub/path/foo")
 ;;
 ;; In Emacs 26.1 or later (see "Caveats" below) you also have the option of
@@ -273,8 +275,8 @@
 ;; Finally, the `so-long-predicate' user option enables the automated behaviour
 ;; to be determined by a custom function, if greater control is needed.
 
-;; Implementation notes
-;; --------------------
+;; * Implementation notes
+;; ----------------------
 ;; This library advises `set-auto-mode' (in order to react after Emacs has
 ;; chosen the major mode for a buffer), and `hack-local-variables' (so that we
 ;; may behave differently when a file-local mode is set).  In earlier versions
@@ -285,8 +287,8 @@
 ;; been set, we potentially change the major mode to `so-long-mode', and it's
 ;; important that the values which were established prior to that are retained.
 
-;; Caveats
-;; -------
+;; * Caveats
+;; ---------
 ;; The variables affecting the automated behavior of this library (such as
 ;; `so-long-action') can be used as file- or dir-local values in Emacs 26+, but
 ;; not in previous versions of Emacs.  This is on account of improvements made
@@ -298,7 +300,7 @@
 ;; this caveat is the `mode' pseudo-variable, which is processed early in all
 ;; versions of Emacs, and can be set to `so-long-mode' if desired.
 
-;;; Change Log:
+;;; * Change Log:
 ;;
 ;; 1.0   - Included in Emacs 27.1, and in GNU ELPA for prior versions of Emacs.
 ;;       - New global mode `global-so-long-mode' to enable/disable the library.
@@ -872,7 +874,8 @@ REPLACEMENT is a `so-long-action-alist' item."
 (defun so-long-commentary ()
   "View the so-long documentation using `finder-commentary'."
   (interactive)
-  (finder-commentary "so-long"))
+  (finder-commentary "so-long")
+  (outline-minor-mode 1))
 
 ;;;###autoload
 (defun so-long-customize ()
