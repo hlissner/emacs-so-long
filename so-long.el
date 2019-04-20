@@ -946,6 +946,7 @@ REPLACEMENT is a `so-long-action-alist' item."
       (set-keymap-parent map (current-local-map))
       (use-local-map map))
     ;; Display the So Long menu.
+    (so-long--ensure-enabled)
     (let ((so-long-action nil))
       (so-long))))
 
@@ -1105,6 +1106,7 @@ This minor mode is a standard `so-long-action' option."
         ;; mode also cares about whether `so-long' was already active, as we do
         ;; not want to remember values which were potentially overridden already.
         (unless (or so-long--calling so-long--active)
+          (so-long--ensure-enabled)
           (setq so-long--active t
                 so-long-detected-p t
                 so-long-function 'turn-on-so-long-minor-mode
@@ -1178,6 +1180,7 @@ Use \\[so-long-customize] to configure the behaviour."
   ;; test in `so-long-after-change-major-mode' to run `so-long-hook', but that's
   ;; not so obviously the right thing to do, so I've omitted it for now.
   (unless so-long--calling
+    (so-long--ensure-enabled)
     (setq so-long--active t
           so-long-detected-p t
           so-long-function 'so-long-mode
@@ -1498,6 +1501,7 @@ argument, select the action to use interactively."
                                 nil :require-match)))))
   (unless so-long--calling
     (let ((so-long--calling t))
+      (so-long--ensure-enabled)
       ;; ACTION takes precedence if supplied.
       (when action
         (setq so-long-function nil
@@ -1587,11 +1591,26 @@ Use \\[so-long-customize] to configure the behaviour."
   :global t
   :group 'so-long
   (if global-so-long-mode
-      (so-long--enable)
-    (so-long--disable)))
+      ;; Enable
+      (progn
+        (so-long--enable)
+        (advice-add 'hack-local-variables :around
+                    #'so-long--hack-local-variables)
+        (advice-add 'set-auto-mode :around
+                    #'so-long--set-auto-mode)
+        (when (< emacs-major-version 26)
+          (advice-add 'hack-one-local-variable :around
+                      #'so-long--hack-one-local-variable)))
+    ;; Disable
+    (so-long--disable)
+    (advice-remove 'hack-local-variables #'so-long--hack-local-variables)
+    (advice-remove 'set-auto-mode #'so-long--set-auto-mode)
+    (when (< emacs-major-version 26)
+      (advice-remove 'hack-one-local-variable
+                     #'so-long--hack-one-local-variable))))
 
 (put 'global-so-long-mode 'variable-documentation
-     "Non-nil if the so-long library's functionality is enabled.
+     "Non-nil if the so-long library's automated functionality is enabled.
 
 Use \\[so-long-commentary] for more information.
 
@@ -1599,14 +1618,13 @@ Setting this variable directly does not take effect;
 either customize it (see the info node `Easy Customization')
 or call the function `global-so-long-mode'.")
 
+(defun so-long--ensure-enabled ()
+  "Enable essential functionality, if not already enabled."
+  (unless so-long-enabled
+    (so-long--enable)))
+
 (defun so-long--enable ()
-  "Enable the so-long library's functionality."
-  (add-hook 'change-major-mode-hook 'so-long-change-major-mode)
-  (advice-add 'hack-local-variables :around #'so-long--hack-local-variables)
-  (advice-add 'set-auto-mode :around #'so-long--set-auto-mode)
-  (when (< emacs-major-version 26)
-    (advice-add 'hack-one-local-variable :around
-                #'so-long--hack-one-local-variable))
+  "Enable functionality other than `global-so-long-mode'."
   (add-to-list 'mode-line-misc-info '("" so-long-mode-line-info))
   (define-key-after (current-global-map) [menu-bar so-long]
     `(menu-item "So Long" nil
@@ -1618,21 +1636,21 @@ or call the function `global-so-long-mode'.")
   (setq so-long-enabled t))
 
 (defun so-long--disable ()
-  "Enable the so-long library's functionality."
-  (remove-hook 'change-major-mode-hook 'so-long-change-major-mode)
-  (advice-remove 'hack-local-variables #'so-long--hack-local-variables)
-  (advice-remove 'set-auto-mode #'so-long--set-auto-mode)
-  (when (< emacs-major-version 26)
-    (advice-remove 'hack-one-local-variable
-                   #'so-long--hack-one-local-variable))
+  "Disable functionality other than `global-so-long-mode'."
   (setq mode-line-misc-info
         (delete '("" so-long-mode-line-info) mode-line-misc-info))
   (define-key (current-global-map) [menu-bar so-long] nil)
   (setq so-long-enabled nil))
 
 (defun so-long-unload-function ()
+  "Handler for `unload-feature'."
   (global-so-long-mode 0)
+  (remove-hook 'change-major-mode-hook 'so-long-change-major-mode)
   nil)
+
+;; Configure `change-major-mode-hook' at load time to ensure that `so-long-mode'
+;; will work correctly if called before the library has been properly enabled.
+(add-hook 'change-major-mode-hook 'so-long-change-major-mode)
 
 (provide 'so-long)
 
