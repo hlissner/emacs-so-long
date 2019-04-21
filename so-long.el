@@ -830,24 +830,6 @@ If RESET is non-nil, remove any existing values before storing the new ones."
     (when (and (boundp mode) mode)
       (so-long-remember mode))))
 
-(defun so-long-change-major-mode ()
-  "Ensure that `so-long-mode' knows the original `major-mode'.
-
-If `so-long-mode' is called interactively, we additionally remember all the
-original variable and minor mode values (normally taken care of by `so-long'),
-so that these can still be restored by `so-long-revert'.
-
-Called during `change-major-mode-hook'."
-  (unless (or (minibufferp)
-              (derived-mode-p 'so-long-mode))
-    ;; Housekeeping.  `so-long-mode' might be invoked directly rather than
-    ;; via `so-long', so replicate the necessary behaviours.
-    (when (and (symbolp this-command)
-               (provided-mode-derived-p this-command 'so-long-mode))
-      (so-long-remember-all :reset))
-    ;; Remember the original major mode.
-    (so-long-remember 'major-mode)))
-
 (defun so-long-menu ()
   "Dynamically generate the \"So Long\" menu."
   ;; (info "(elisp) Menu Example")
@@ -1184,17 +1166,7 @@ Use \\[so-long-customize] to configure the behaviour."
     (setq so-long--active t
           so-long-detected-p t
           so-long-function 'so-long-mode
-          so-long-revert-function 'so-long-mode-revert)
-    ;; Reset `so-long-original-values' with the exception of `major-mode' which
-    ;; has just been stored by `so-long-change-major-mode'.  If we are directly
-    ;; invoking `so-long-mode' interactively then that `change-major-mode-hook'
-    ;; function additionally stored all the original values, and we do not want
-    ;; to clobber any of them.
-    (unless (and (symbolp this-command)
-                 (provided-mode-derived-p this-command 'so-long-mode))
-      (let ((major (so-long-original 'major-mode :exists)))
-        (setq so-long-original-values
-              (if major (list major) nil)))))
+          so-long-revert-function 'so-long-mode-revert))
   ;; Use `after-change-major-mode-hook' to disable minor modes and override
   ;; variables.  Append, to act after any globalized modes have acted.
   (add-hook 'after-change-major-mode-hook
@@ -1218,6 +1190,22 @@ Use \\[so-long-customize] to configure the behaviour."
              major-mode
              (or (so-long-original 'major-mode) "<unknown>")
              (substitute-command-keys "\\[so-long-revert]"))))
+
+(defun so-long--change-major-mode ()
+  ;; Advice, enabled with:
+  ;; (advice-add 'so-long-mode :before #'so-long--change-major-mode)
+  "Ensure that `so-long-mode' knows the original `major-mode'.
+
+This advice acts before `so-long-mode', with the previous mode still active."
+  (unless (derived-mode-p 'so-long-mode)
+    ;; Housekeeping.  `so-long-mode' might be invoked directly rather than
+    ;; via `so-long', so replicate the necessary behaviours.
+    (unless so-long--calling
+      (so-long-remember-all :reset))
+    ;; Remember the original major mode, regardless.
+    (so-long-remember 'major-mode)))
+
+(advice-add 'so-long-mode :before #'so-long--change-major-mode)
 
 (defun so-long-after-change-major-mode ()
   "Run by `so-long-mode' in `after-change-major-mode-hook'.
@@ -1645,12 +1633,7 @@ or call the function `global-so-long-mode'.")
 (defun so-long-unload-function ()
   "Handler for `unload-feature'."
   (global-so-long-mode 0)
-  (remove-hook 'change-major-mode-hook 'so-long-change-major-mode)
   nil)
-
-;; Configure `change-major-mode-hook' at load time to ensure that `so-long-mode'
-;; will work correctly if called before the library has been properly enabled.
-(add-hook 'change-major-mode-hook 'so-long-change-major-mode)
 
 (provide 'so-long)
 
