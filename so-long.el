@@ -1194,6 +1194,11 @@ Use \\[so-long-customize] to configure the behaviour."
 (defun so-long--change-major-mode ()
   ;; Advice, enabled with:
   ;; (advice-add 'so-long-mode :before #'so-long--change-major-mode)
+  ;;
+  ;; n.b. `major-mode-suspend' and `major-mode-restore' are new in Emacs 27, and
+  ;; related to what we're doing here; but it's not worth going to the effort of
+  ;; using those (conditionally, only for 27+) when we have our own framework
+  ;; for remembering and restoring this buffer state (amongst other things).
   "Ensure that `so-long-mode' knows the original `major-mode'.
 
 This advice acts before `so-long-mode', with the previous mode still active."
