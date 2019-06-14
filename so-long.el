@@ -456,6 +456,10 @@ See `so-long-detected-long-line-p' for details."
 (defcustom so-long-skip-leading-comments t
   "Non-nil to ignore all leading comments and whitespace.
 
+If the file begins with a shebang (#!), this option also causes that line to be
+ignored even if it doesn't match the buffer's comment syntax, to ensure that
+comments following the shebang will be ignored.
+
 See `so-long-detected-long-line-p' for details."
   :type 'boolean
   :package-version '(so-long . "1.0")
@@ -1005,7 +1009,11 @@ This is the default value of `so-long-predicate'."
     (save-excursion
       (goto-char (point-min))
       (when so-long-skip-leading-comments
-        ;; Clears whitespace at minimum.
+        ;; Skip the shebang line, if any.  This is not necessarily comment
+        ;; syntax, so we need to treat it specially.
+        (when (looking-at "#!")
+          (forward-line 1))
+        ;; Move past any leading whitespace and/or comments.
         ;; We use narrowing to limit the amount of text being processed at any
         ;; given time, where possible, as this makes things more efficient.
         (setq start (point))
