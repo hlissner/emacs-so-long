@@ -388,6 +388,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+
 (add-to-list 'customize-package-emacs-version-alist
              '(so-long ("1.0" . "27.1")))
 
