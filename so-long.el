@@ -1036,8 +1036,11 @@ This is the default value of `so-long-predicate'."
                    ;; If there was whitespace, we moved past it.
                    (setq start (point)))))
         ;; We're at the first non-comment line, but we may have moved past
-        ;; indentation whitespace, so move back to the beginning of the line.
-        (forward-line 0))
+        ;; indentation whitespace, so move back to the beginning of the line
+        ;; unless we're at the end of the buffer (in which case there was no
+        ;; non-comment/whitespace content in the buffer at all).
+        (unless (eobp)
+          (forward-line 0)))
       ;; Start looking for long lines.
       ;; `while' will ultimately return nil if we do not `throw' a result.
       (catch 'excessive
