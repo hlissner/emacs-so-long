@@ -412,6 +412,9 @@ Has no effect if `global-so-long-mode' is not enabled.")
 (defvar so-long--set-auto-mode nil ; internal use
   "Non-nil while `set-auto-mode' is executing.")
 
+(defvar so-long--hack-local-variables-no-mode nil ; internal use
+  "Non-nil to prevent `hack-local-variables' applying a 'mode' variable.")
+
 (defvar-local so-long--inhibited nil ; internal use
   "When non-nil, prevents the `set-auto-mode' advice from calling `so-long'.")
 (put 'so-long--inhibited 'permanent-local t)
@@ -1306,9 +1309,15 @@ This is the `so-long-revert-function' for `so-long-mode'."
       (error "Original mode unknown."))
     (funcall so-long-original-mode)
     ;; Emacs 26+ has already called `hack-local-variables' (during
-    ;; `run-mode-hooks'), but for older versions we need to call it here.
+    ;; `run-mode-hooks'; provided there was a `buffer-file-name'), but for older
+    ;; versions we need to call it here.  In Emacs 26+ the revised 'HANDLE-MODE'
+    ;; argument is set to `no-mode' (being the non-nil-and-non-t behaviour),
+    ;; which we mimic here by binding `so-long--hack-local-variables-no-mode',
+    ;; in order to prevent a local 'mode' variable from clobbering the major
+    ;; mode we have just called.
     (when (< emacs-major-version 26)
-      (hack-local-variables))
+      (let ((so-long--hack-local-variables-no-mode t))
+        (hack-local-variables)))
     ;; Restore minor modes.
     (so-long-restore-minor-modes)
     ;; Restore overridden variables.
@@ -1478,6 +1487,10 @@ by testing the value against `major-mode'; but as we may have changed the
 major mode to `so-long-mode' by this point, that protection is insufficient
 and so we need to perform our own test.
 
+We likewise need to support an equivalent of the `no-mode' behaviour in 26.1+
+to ensure that `so-long-mode-revert' will not restore a file-local mode again
+after it has already reverted to the original mode.
+
 The changes to `normal-mode' in Emacs 26.1 modified the execution order, and
 makes this advice unnecessary.  The relevant NEWS entry is:
 
@@ -1488,8 +1501,9 @@ These local variables will thus not vanish on setting a major mode."
       ;; Adapted directly from `hack-one-local-variable'
       (let ((mode (intern (concat (downcase (symbol-name val))
                                   "-mode"))))
-        (unless (eq (indirect-function mode)
-                    (indirect-function (so-long-original 'major-mode)))
+        (unless (or so-long--hack-local-variables-no-mode
+                    (eq (indirect-function mode)
+                        (indirect-function (so-long-original 'major-mode))))
           (funcall orig-fun var val)))
     ;; VAR is not the 'mode' pseudo-variable.
     (funcall orig-fun var val)))
