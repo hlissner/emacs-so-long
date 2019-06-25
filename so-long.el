@@ -1502,8 +1502,13 @@ These local variables will thus not vanish on setting a major mode."
       (let ((mode (intern (concat (downcase (symbol-name val))
                                   "-mode"))))
         (unless (or so-long--hack-local-variables-no-mode
-                    (eq (indirect-function mode)
-                        (indirect-function (so-long-original 'major-mode))))
+                    (let ((origmode (so-long-original 'major-mode)))
+                      ;; We bind origmode because (indirect-function nil) is an
+                      ;; error in Emacs versions < 25.1, and so we need to test
+                      ;; it first.
+                      (and origmode
+                           (eq (indirect-function mode)
+                               (indirect-function origmode)))))
           (funcall orig-fun var val)))
     ;; VAR is not the 'mode' pseudo-variable.
     (funcall orig-fun var val)))
