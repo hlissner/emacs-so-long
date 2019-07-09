@@ -680,6 +680,8 @@ was established."
   '(font-lock-mode ;; (Generally the most important).
     ;; Other standard minor modes:
     display-line-numbers-mode
+    goto-address-mode
+    goto-address-prog-mode
     hi-lock-mode
     highlight-changes-mode
     hl-line-mode
@@ -728,6 +730,7 @@ they are in Emacs core, GNU ELPA, or elsewhere."
     (buffer-read-only . t)
     (global-hl-line-mode . nil)
     (line-move-visual . t)
+    (show-paren-mode . nil)
     (truncate-lines . nil)
     (which-func-mode . nil))
   "Variables to override, and the values to override them with.
@@ -743,6 +746,7 @@ to their original states."
              (buffer-read-only boolean)
              (global-hl-line-mode boolean)
              (line-move-visual boolean)
+             (show-paren-mode boolean)
              (truncate-lines boolean)
              (which-func-mode boolean))
   :package-version '(so-long . "1.0")
