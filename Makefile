@@ -4,7 +4,8 @@ EMACS ?= emacs
 TESTSUITES = so-long-tests.elc \
 	autoload-longlines-mode-tests.elc \
 	autoload-minor-mode-tests.elc \
-	autoload-major-mode-tests.elc
+	autoload-major-mode-tests.elc \
+	spelling-tests.elc
 
 all: compile test
 
