@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Example usage:
+#
+# ./test
+# ./test 26.3 [...]
+# ./test emacs-26.3 [...]
+# ./test path/to/emacs-26.3 [...]
+#
+# Any number and combination of recognised arguments may be supplied.
+#
+# The first form relies on the locate(1) utility to find installed
+# versions of Emacs.
+
+emacs_file_truename () {
+    local file
+    file=$(emacs_string_escape "$1")
+    emacs -Q --batch --eval "(princ (file-truename \"${file}\"))"
+}
+
+emacs_string_escape () {
+    printf %s "$1" \
+        | sed -e 's/\\/\\\\/g' \
+              -e 's/"/\\"/g'
+}
+
+declare -a args
+if [ $# -gt 0 ]; then
+    for arg; do
+        # e.g.: "26.3" "emacs-26.3" "path/to/emacs-26.3"
+        if [ "$(basename "${arg}")" = "${arg}" ]; then
+            arg="emacs-${arg#emacs-}"
+        fi
+        path=$(which "${arg}")
+        if [ -n "${path}" ]; then
+            args[${#args[@]}]=$(emacs_file_truename "${path}")
+        else
+            printf "Could not find %s\n" "${arg}" >&2
+        fi
+    done
+else
+    # Locate distinct emacs-??.? style executables.
+    locate_regexp='/\(bin\|src\)/emacs-[0-9]\+.[0-9]\+\(.[0-9]\+\)\?$'
+    declare -A emacs_paths
+    for version in $(locate --regexp "${locate_regexp}"); do
+        path=$(emacs_file_truename "${version}")
+        emacs_paths["${path}"]=$(basename "${version}")
+    done
+    # Sort by version.
+    declare -A emacs_versions
+    for path in "${!emacs_paths[@]}"; do
+        emacs_versions["${emacs_paths[$path]}"]="${path}"
+    done
+    sorted=$(printf "%s\n" "${!emacs_versions[@]}" | sort --version-sort)
+    for version in ${sorted}; do
+        args[${#args[@]}]="${emacs_versions[$version]}"
+    done
+fi
+
+# Test each version in sequence.
+for EMACS in "${args[@]}"; do
+    version=$($EMACS -Q --batch --eval '(message "%s" emacs-version)' 2>&1)
+    printf "%s\\n" "$version"
+    printf "%s\\n" "$EMACS"
+    export EMACS
+    make clean all 2>&1 | grep -a --color=never results
+done
